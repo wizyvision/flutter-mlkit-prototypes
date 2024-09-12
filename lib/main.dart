@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
+import 'camera_screen.dart';
 
 void main() {
-  runApp(const MainApp());
+  runApp(MainApp());
 }
 
 class MainApp extends StatelessWidget {
-  const MainApp({super.key});
-
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Document Scanner',
-      /* home: CameraScreen(), */
+      home: CameraScreen(),
     );
   }
 }
