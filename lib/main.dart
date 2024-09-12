@@ -10,7 +10,7 @@ class MainApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Document Scanner',
-      home: CameraScreen(),
+      home: ScannerScreen(),
     );
   }
 }

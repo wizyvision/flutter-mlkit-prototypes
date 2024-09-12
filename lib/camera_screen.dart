@@ -1,93 +1,92 @@
-import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
+import 'package:permission_handler/permission_handler.dart';
 
-class CameraScreen extends StatefulWidget {
+class ScannerScreen extends StatefulWidget {
   @override
-  _CameraScreenState createState() => _CameraScreenState();
+  _ScannerScreenState createState() => _ScannerScreenState();
 }
 
-class _CameraScreenState extends State<CameraScreen> {
-  late CameraController _controller;
-  late Future<void> _initializeControllerFuture;
+class _ScannerScreenState extends State<ScannerScreen> {
   late DocumentScanner _documentScanner;
-  late DocumentScannerOptions _documentOptions;
 
   @override
   void initState() {
     super.initState();
-    initializeCamera();
-    setupDocumentScanner();
-  }
-
-  void initializeCamera() async {
-    final cameras = await availableCameras();
-    _controller = CameraController(
-      cameras[0],
-      ResolutionPreset.high,
-    );
-    _initializeControllerFuture = _controller.initialize();
-  }
-
-  void setupDocumentScanner() {
-    _documentOptions = DocumentScannerOptions(
+    final DocumentScannerOptions documentOptions = DocumentScannerOptions(
       documentFormat: DocumentFormat.jpeg,
       mode: ScannerMode.filter,
       pageLimit: 1,
       isGalleryImport: true,
     );
-    _documentScanner = DocumentScanner(options: _documentOptions);
+    _documentScanner = DocumentScanner(options: documentOptions);
+  }
+
+  Future<void> _requestPermissions() async {
+    final cameraStatus = await Permission.camera.request();
+    final storageStatus = await Permission.storage.request();
+
+    print('Camera permission status: ${cameraStatus.isGranted}');
+    print('Storage permission status: ${storageStatus.isGranted}');
+
+    if (!cameraStatus.isGranted || !storageStatus.isGranted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Please grant camera and storage permissions')),
+      );
+      return;
+    }
+
+    _scanDocument();
   }
 
   Future<void> _scanDocument() async {
     try {
-      // Capture image
-      XFile imageFile = await _controller.takePicture();
+      print('Starting document scan...');
+      final result = await _documentScanner.scanDocument();
+      print('Document scan result: $result');
 
-      DocumentScanningResult result = await _documentScanner.scanDocument();
+      final pdf = result.pdf;
+      final images = result.images;
 
-      final pdf = result.pdf; // PDF object
-      final images = result.images; // List of image paths
+      if (pdf != null) {
+        print('PDF generated');
+        // Handle the generated PDF
+      } else {
+        print('No PDF generated');
+      }
 
-      // Process the scanned document
-      setState(() {
-        // Handle scanned results
-        print('PDF path: $pdf');
-        print('Image paths: $images');
-      });
-    } catch (e) {
-      print("Error scanning document: $e");
+      if (images.isNotEmpty) {
+        print('Images captured: ${images.length}');
+        // Handle the images
+      } else {
+        print('No images captured');
+      }
+    } catch (e, stackTrace) {
+      print('Error scanning document: $e');
+      print('Stack trace: $stackTrace');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to scan document: $e')),
+      );
     }
   }
 
   @override
   void dispose() {
     _documentScanner.close();
-    _controller.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Document Scanner')),
-      body: FutureBuilder<void>(
-        future: _initializeControllerFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.done) {
-            return Column(
-              children: [
-                Expanded(child: CameraPreview(_controller)),
-                ElevatedButton(
-                  onPressed: _scanDocument,
-                  child: Text('Scan Document'),
-                ),
-              ],
-            );
-          } else {
-            return Center(child: CircularProgressIndicator());
-          }
-        },
+      appBar: AppBar(
+        title: Text('Document Scanner'),
+      ),
+      body: Center(
+        child: ElevatedButton(
+          onPressed: _requestPermissions,
+          child: Text('Scan Document'),
+        ),
       ),
     );
   }
