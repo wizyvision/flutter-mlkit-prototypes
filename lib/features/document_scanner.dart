@@ -4,8 +4,27 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
+import 'package:ml_kit_implementation/features/ml_kit_feature.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
+
+class DocumentScannerFeature extends MLKitFeature {
+  DocumentScannerFeature()
+      : super(
+          name: "Document Scanner",
+          description: "Scan documents",
+          icon: Icons.document_scanner_outlined,
+          color: Colors.lightBlue[100]!,
+        );
+
+  @override
+  void launch(BuildContext context) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => ScannerScreen()),
+    );
+  }
+}
 
 class ScannerScreen extends StatefulWidget {
   @override
@@ -25,6 +44,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
       isGalleryImport: true,
     );
     _documentScanner = DocumentScanner(options: documentOptions);
+
+    _requestPermissions();
   }
 
   Future<void> _requestPermissions() async {
@@ -114,10 +135,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
         title: Text('Document Scanner'),
       ),
       body: Center(
-        child: ElevatedButton(
-          onPressed: _requestPermissions,
-          child: Text('Scan Document'),
-        ),
+        child: CircularProgressIndicator(),
       ),
     );
   }

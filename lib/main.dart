@@ -1,16 +1,18 @@
 import 'package:flutter/material.dart';
-import 'camera_screen.dart';
+import 'package:ml_kit_implementation/home_page.dart';
 
-void main() {
-  runApp(MainApp());
-}
+void main() => runApp(MyApp());
 
-class MainApp extends StatelessWidget {
+class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Document Scanner',
-      home: ScannerScreen(),
+      title: 'ML Kit Feature Launcher',
+      theme: ThemeData(
+        primarySwatch: Colors.blue,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
+      ),
+      home: HomePage(),
     );
   }
 }
