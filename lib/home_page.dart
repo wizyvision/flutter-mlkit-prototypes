@@ -50,55 +50,94 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('ML Kit Features'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(8.0),
-        child: Column(
-          children: [
-            // Search Bar
-            TextField(
-              decoration: InputDecoration(
-                labelText: 'Search Features',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.search),
-              ),
-              onChanged: _searchFeatures,
-            ),
-            SizedBox(height: 10),
-            // Sort Dropdown
-            Row(
-              mainAxisAlignment: MainAxisAlignment.start,
-              children: [
-                Text("Sort by: "),
-                DropdownButton<String>(
-                  value: sortBy,
-                  items: <String>['Name', 'Description'].map((String value) {
-                    return DropdownMenuItem<String>(
-                      value: value,
-                      child: Text(value),
-                    );
-                  }).toList(),
-                  onChanged: (newValue) {
-                    _sortFeatures(newValue!);
-                  },
+      backgroundColor: Colors.white,
+      body: Column(
+        children: [
+          SizedBox(height: 40),
+          Container(
+            width: 380,
+            child: AppBar(
+              backgroundColor: Colors.white,
+              title: Text(
+                'ML Kit Features',
+                style: TextStyle(
+                  fontFamily: 'Montserrat-ExtraBold',
                 ),
-              ],
+              ),
             ),
-            SizedBox(height: 10),
-            // List of Features
-            Expanded(
+          ),
+
+          SizedBox(height: 10),
+
+          // Search Box
+          Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: SizedBox(
+                width: 350,
+                child: TextField(
+                  decoration: InputDecoration(
+                    labelText: 'Search Features',
+                    labelStyle: TextStyle(fontFamily: 'Montserrat-Medium'),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
+                    prefixIcon: Icon(Icons.search),
+                  ),
+                  onChanged: _searchFeatures,
+                ),
+              ),
+            ),
+          ),
+
+          SizedBox(height: 20),
+
+          // Sort Dropdown
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: Container(
+              width: 340, // Ensure dropdown width matches the TextField width
+              child: DropdownButtonFormField<String>(
+                value: sortBy,
+                items: <String>['Name', 'Description'].map((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(
+                      value,
+                      style: TextStyle(
+                        color: Colors.black, // Text color of dropdown items
+                        fontFamily: 'Montserrat-SemiBold',
+                      ),
+                    ),
+                  );
+                }).toList(),
+                onChanged: (newValue) {
+                  _sortFeatures(newValue!);
+                },
+                icon: Icon(Icons.sort, color: Colors.black),
+                dropdownColor: Colors.white,
+                decoration: InputDecoration.collapsed(hintText: ''),
+              ),
+            ),
+          ),
+
+          // List of Features
+          Expanded(
+            child: Container(
+              width: 350,
               child: ListView.builder(
                 itemCount: filteredFeatures.length,
                 itemBuilder: (context, index) {
                   final feature = filteredFeatures[index];
-                  return FeatureListItem(feature: feature); // Refactored widget
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 0.0),
+                    child: FeatureListItem(feature: feature),
+                  );
                 },
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

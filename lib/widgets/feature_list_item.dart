@@ -13,7 +13,7 @@ class FeatureListItem extends StatelessWidget {
     final Color textIconColor = darken(cardColor, 0.5);
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10.0),
+      padding: const EdgeInsets.symmetric(vertical: 8.0),
       child: Card(
         elevation: 5,
         shape: RoundedRectangleBorder(
@@ -29,14 +29,19 @@ class FeatureListItem extends StatelessWidget {
           title: Text(
             feature.name,
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 17,
+              fontFamily: 'Montserrat-Bold',
               fontWeight: FontWeight.bold,
               color: textIconColor,
             ),
           ),
           subtitle: Text(
             feature.description,
-            style: TextStyle(color: textIconColor),
+            style: TextStyle(
+              color: textIconColor,
+              fontSize: 13,
+              fontFamily: 'Montserrat-Medium',
+            ),
           ),
           trailing: Icon(
             Icons.arrow_forward_ios,
