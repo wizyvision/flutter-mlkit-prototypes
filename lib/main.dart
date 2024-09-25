@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:ml_kit_implementation/home_page.dart';
 
-void main() => runApp(MyApp());
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(MyApp());
+}
 
 class MyApp extends StatelessWidget {
   @override
@@ -12,7 +15,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: HomePage(),
+      home: HomePage(), // Change this to HomePage to make it the default screen
       debugShowCheckedModeBanner: false,
     );
   }

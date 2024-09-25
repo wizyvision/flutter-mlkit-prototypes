@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:ml_kit_implementation/features/ml_kit_feature.dart';
-import 'features/document_scanner.dart';
-import 'features/barcode_scanner.dart';
+import 'cards/document_scanner.dart';
+import 'cards/barcode_scanner.dart';
 import 'widgets/feature_list_item.dart';
 
 class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
   @override
   _HomePageState createState() => _HomePageState();
 }
@@ -53,12 +55,12 @@ class _HomePageState extends State<HomePage> {
       backgroundColor: Colors.white,
       body: Column(
         children: [
-          SizedBox(height: 40),
+          const SizedBox(height: 40),
           Container(
             width: 380,
             child: AppBar(
               backgroundColor: Colors.white,
-              title: Text(
+              title: const Text(
                 'ML Kit Features',
                 style: TextStyle(
                   fontFamily: 'Montserrat-ExtraBold',
@@ -67,7 +69,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
 
           // Search Box
           Center(
@@ -78,11 +80,12 @@ class _HomePageState extends State<HomePage> {
                 child: TextField(
                   decoration: InputDecoration(
                     labelText: 'Search Features',
-                    labelStyle: TextStyle(fontFamily: 'Montserrat-Medium'),
+                    labelStyle:
+                        const TextStyle(fontFamily: 'Montserrat-Medium'),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10.0),
                     ),
-                    prefixIcon: Icon(Icons.search),
+                    prefixIcon: const Icon(Icons.search),
                   ),
                   onChanged: _searchFeatures,
                 ),
@@ -90,7 +93,7 @@ class _HomePageState extends State<HomePage> {
             ),
           ),
 
-          SizedBox(height: 20),
+          const SizedBox(height: 20),
 
           // Sort Dropdown
           Padding(
@@ -104,7 +107,7 @@ class _HomePageState extends State<HomePage> {
                     value: value,
                     child: Text(
                       value,
-                      style: TextStyle(
+                      style: const TextStyle(
                         color: Colors.black, // Text color of dropdown items
                         fontFamily: 'Montserrat-SemiBold',
                       ),
@@ -114,9 +117,9 @@ class _HomePageState extends State<HomePage> {
                 onChanged: (newValue) {
                   _sortFeatures(newValue!);
                 },
-                icon: Icon(Icons.sort, color: Colors.black),
+                icon: const Icon(Icons.sort, color: Colors.black),
                 dropdownColor: Colors.white,
-                decoration: InputDecoration.collapsed(hintText: ''),
+                decoration: const InputDecoration.collapsed(hintText: ''),
               ),
             ),
           ),

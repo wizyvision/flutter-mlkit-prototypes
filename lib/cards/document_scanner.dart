@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
 import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:ml_kit_implementation/features/ml_kit_feature.dart';
+import 'package:ml_kit_implementation/handlers/permissions_helper.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 class DocumentScannerFeature extends MLKitFeature {
   DocumentScannerFeature()
@@ -44,25 +44,15 @@ class _ScannerScreenState extends State<ScannerScreen> {
       isGalleryImport: true,
     );
     _documentScanner = DocumentScanner(options: documentOptions);
-
     _requestPermissions();
   }
 
   Future<void> _requestPermissions() async {
-    final cameraStatus = await Permission.camera.request();
-    final storageStatus = await Permission.storage.request();
-
-    print('Camera permission status: ${cameraStatus.isGranted}');
-    print('Storage permission status: ${storageStatus.isGranted}');
-
-    if (!cameraStatus.isGranted || !storageStatus.isGranted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Please grant camera and storage permissions')),
-      );
-      return;
+    bool permissionsGranted =
+        await PermissionsHelper.requestPermissions(context);
+    if (permissionsGranted) {
+      _scanDocument();
     }
-
-    _scanDocument();
   }
 
   Future<void> _scanDocument() async {

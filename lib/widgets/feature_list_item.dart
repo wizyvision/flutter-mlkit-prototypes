@@ -5,7 +5,7 @@ import '../utils/color_utils.dart';
 class FeatureListItem extends StatelessWidget {
   final MLKitFeature feature;
 
-  FeatureListItem({required this.feature});
+  const FeatureListItem({super.key, required this.feature});
 
   @override
   Widget build(BuildContext context) {
