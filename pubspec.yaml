@@ -10,8 +10,16 @@ dependencies:
   camera: ^0.11.0+2
   flutter:
     sdk: flutter
+  google_ml_kit: ^0.18.0
+  google_mlkit_barcode_scanning: ^0.12.0
+  google_mlkit_commons: ^0.8.1
   google_mlkit_document_scanner: ^0.2.0
+  google_mlkit_text_recognition: ^0.13.1
+  image: ^4.2.0
+  image_gallery_saver: ^2.0.3
   image_picker: ^1.1.2
+  path: ^1.9.0
+  path_provider: ^2.1.4
   permission_handler: ^11.3.1
 
 dev_dependencies:
@@ -21,3 +29,78 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/fonts/
+  
+  fonts:
+    - family: Montserrat-Thin
+      fonts:
+        - asset: assets/fonts/Montserrat-Thin.ttf
+
+    - family: Montserrat-ThinItalic
+      fonts:
+        - asset: assets/fonts/Montserrat-ThinItalic.ttf
+
+    - family: Montserrat-ExtraLight
+      fonts:
+        - asset: assets/fonts/Montserrat-ExtraLight.ttf
+
+    - family: Montserrat-ExtraLightItalic
+      fonts:
+        - asset: assets/fonts/Montserrat-ExtraLightItalic.ttf
+
+    - family: Montserrat-Light
+      fonts:
+        - asset: assets/fonts/Montserrat-Light.ttf
+
+    - family: Montserrat-LightItalic
+      fonts:
+        - asset: assets/fonts/Montserrat-LightItalic.ttf
+
+    - family: Montserrat-Regular
+      fonts:
+        - asset: assets/fonts/Montserrat-Regular.ttf
+
+    - family: Montserrat-Medium
+      fonts:
+        - asset: assets/fonts/Montserrat-Medium.ttf
+
+    - family: Montserrat-MediumItalic
+      fonts:
+        - asset: assets/fonts/Montserrat-MediumItalic.ttf
+
+    - family: Montserrat-SemiBold
+      fonts:
+        - asset: assets/fonts/Montserrat-SemiBold.ttf
+
+    - family: Montserrat-SemiBoldItalic
+      fonts:
+        - asset: assets/fonts/Montserrat-SemiBoldItalic.ttf
+
+    - family: Montserrat-Bold
+      fonts:
+        - asset: assets/fonts/Montserrat-Bold.ttf
+
+    - family: Montserrat-BoldItalic
+      fonts:
+        - asset: assets/fonts/Montserrat-BoldItalic.ttf
+
+    - family: Montserrat-ExtraBold
+      fonts:
+        - asset: assets/fonts/Montserrat-ExtraBold.ttf
+
+    - family: Montserrat-ExtraBoldItalic
+      fonts:
+        - asset: assets/fonts/Montserrat-ExtraBoldItalic.ttf
+
+    - family: Montserrat-Black
+      fonts:
+        - asset: assets/fonts/Montserrat-Black.ttf
+
+    - family: Montserrat-BlackItalic
+      fonts:
+        - asset: assets/fonts/Montserrat-BlackItalic.ttf
+
+    - family: Montserrat-Italic
+      fonts:
+        - asset: assets/fonts/Montserrat-Italic.ttf
