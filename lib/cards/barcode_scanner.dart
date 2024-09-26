@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:ml_kit_implementation/cards/document_scanner.dart';
 import 'package:ml_kit_implementation/features/barcode_scanner_view.dart';
 import 'package:ml_kit_implementation/features/ml_kit_feature.dart';
 

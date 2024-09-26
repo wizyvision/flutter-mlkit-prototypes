@@ -1,71 +1,117 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
-
-import 'detector_view.dart';
-import 'painters/barcode_detector_painter.dart';
+import 'package:ml_kit_implementation/features/painters/barcode_detector_painter.dart';
+import 'camera_view.dart';
 
 class BarcodeScannerView extends StatefulWidget {
+  const BarcodeScannerView({Key? key}) : super(key: key);
+
   @override
   State<BarcodeScannerView> createState() => _BarcodeScannerViewState();
 }
 
 class _BarcodeScannerViewState extends State<BarcodeScannerView> {
   final BarcodeScanner _barcodeScanner = BarcodeScanner();
+  String? _barcodeText;
+  CustomPaint? _customPaint;
   bool _canProcess = true;
   bool _isBusy = false;
-  CustomPaint? _customPaint;
-  String? _text;
-  var _cameraLensDirection = CameraLensDirection.back;
 
   @override
   void dispose() {
-    _canProcess = false;
     _barcodeScanner.close();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return DetectorView(
-      title: 'Barcode Scanner',
-      customPaint: _customPaint,
-      text: _text,
-      onImage: _processImage,
-      initialCameraLensDirection: _cameraLensDirection,
-      onCameraLensDirectionChanged: (value) => _cameraLensDirection = value,
+    return Scaffold(
+      appBar: AppBar(title: const Text('Barcode Scanner')),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          CameraView(onImage: _processImage),
+          if (_customPaint != null)
+            _customPaint!, // Display the barcode painter
+        ],
+      ),
     );
   }
 
   Future<void> _processImage(InputImage inputImage) async {
-    if (!_canProcess) return;
-    if (_isBusy) return;
+    if (!_canProcess || _isBusy) return;
     _isBusy = true;
-    setState(() {
-      _text = '';
-    });
-    final barcodes = await _barcodeScanner.processImage(inputImage);
-    if (inputImage.metadata?.size != null &&
-        inputImage.metadata?.rotation != null) {
-      final painter = BarcodeDetectorPainter(
-        barcodes,
-        inputImage.metadata!.size,
-        inputImage.metadata!.rotation,
-        _cameraLensDirection,
-      );
-      _customPaint = CustomPaint(painter: painter);
-    } else {
-      String text = 'Barcodes found: ${barcodes.length}\n\n';
-      for (final barcode in barcodes) {
-        text += 'Barcode: ${barcode.rawValue}\n\n';
+
+    // Check if inputImage is valid
+    if (inputImage == null) {
+      print('InputImage is null, skipping processing');
+      _isBusy = false;
+      return;
+    }
+
+    try {
+      // Process the image with the barcode scanner
+      final barcodes = await _barcodeScanner.processImage(inputImage);
+      if (barcodes.isNotEmpty) {
+        setState(() {
+          _barcodeText = barcodes.first.rawValue; // Capture the first barcode
+          _showBarcodeResultDialog(
+              _barcodeText!); // Show the result in a dialog
+        });
       }
-      _text = text;
-      // TODO: set _customPaint to draw boundingRect on top of image
-      _customPaint = null;
+
+      // Check if metadata is not null and its properties are accessible
+      final metadata = inputImage.metadata;
+      if (metadata != null) {
+        final size = metadata.size;
+        final rotation = metadata.rotation;
+
+        // Ensure size and rotation are valid before using them
+        if (size != null && rotation != null) {
+          // Create a painter to show barcode bounding boxes
+          final painter = BarcodeDetectorPainter(
+            barcodes,
+            size,
+            rotation,
+            CameraLensDirection.back, // Adjust based on your camera direction
+          );
+
+          setState(() {
+            _customPaint = CustomPaint(painter: painter);
+          });
+        }
+      }
+    } catch (e) {
+      print(
+          'Error processing image: $e'); // Catch and log any errors during processing
+    } finally {
+      _isBusy = false;
     }
-    _isBusy = false;
-    if (mounted) {
-      setState(() {});
-    }
+  }
+
+  Future<void> _showBarcodeResultDialog(String barcode) {
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Barcode Result'),
+          content: Text('Scanned Barcode: $barcode'),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                setState(() {
+                  _barcodeText = null; // Reset after showing the dialog
+                  _customPaint =
+                      null; // Clear the painter after showing the dialog
+                });
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 }
