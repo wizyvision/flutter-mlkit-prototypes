@@ -3,7 +3,6 @@ import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:ml_kit_implementation/features/ml_kit_feature.dart';
 import 'package:ml_kit_implementation/handlers/permissions_helper.dart';
 import 'package:path_provider/path_provider.dart';
@@ -98,8 +97,8 @@ class _ScannerScreenState extends State<ScannerScreen> {
   // Funtion to save image as JPEG to gallery
   Future<void> _saveImageToGallery(String imagePath) async {
     final imageBytes = File(imagePath).readAsBytesSync();
-    final result = await ImageGallerySaver.saveImage(imageBytes);
-    print('Image saved to gallery: $result');
+    // final result = await ImageGallerySaver.saveImage(imageBytes);
+    // print('Image saved to gallery: $result');
   }
 
   // Function to save PDF to files
