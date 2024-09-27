@@ -12,8 +12,12 @@ class FeatureListItem extends StatelessWidget {
     final Color cardColor = feature.color;
     final Color textIconColor = darken(cardColor, 0.5);
 
+    final double screenHeight = MediaQuery.of(context).size.height;
+    final double screenWidth = MediaQuery.of(context).size.width;
+
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8.0),
+      padding: EdgeInsets.symmetric(
+          vertical: screenHeight * 0.01), // Adaptive padding
       child: Card(
         elevation: 5,
         shape: RoundedRectangleBorder(
@@ -24,12 +28,12 @@ class FeatureListItem extends StatelessWidget {
           leading: Icon(
             feature.icon,
             color: textIconColor,
-            size: 40,
+            size: screenWidth * 0.1, // Adaptive icon size
           ),
           title: Text(
             feature.name,
             style: TextStyle(
-              fontSize: 17,
+              fontSize: screenWidth * 0.04, // Adaptive text size
               fontFamily: 'Montserrat-Bold',
               fontWeight: FontWeight.bold,
               color: textIconColor,
@@ -39,13 +43,14 @@ class FeatureListItem extends StatelessWidget {
             feature.description,
             style: TextStyle(
               color: textIconColor,
-              fontSize: 13,
+              fontSize: screenWidth * 0.03, // Adaptive text size
               fontFamily: 'Montserrat-Medium',
             ),
           ),
           trailing: Icon(
             Icons.arrow_forward_ios,
             color: textIconColor,
+            size: screenWidth * 0.05, // Adaptive icon size
           ),
           onTap: () => feature.launch(context),
         ),
