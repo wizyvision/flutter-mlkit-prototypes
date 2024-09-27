@@ -1,171 +1,173 @@
-import 'dart:io';
-
-import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:flutter/services.dart';
-import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
-// import 'package:text_scanner/enums.dart';
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/material.dart';
+import 'package:gal/gal.dart';
 
-class CameraStreamView extends StatefulWidget {
-  final List<CameraDescription> cameras;
-
-  final Function(InputImage inputImage) onImage;
-  final VoidCallback? onCameraFeedReady;
-  final CameraLensDirection? initialCameraLensDirection;
-  final CustomPaint? customPaint;
-
-  const CameraStreamView({
-    super.key,
-    required this.cameras,
-    required this.onImage,
-    this.onCameraFeedReady,
-    this.initialCameraLensDirection = CameraLensDirection.back,
-    this.customPaint,
-  });
+class CameraView extends StatefulWidget {
+  const CameraView({super.key});
 
   @override
-  State<CameraStreamView> createState() => _CameraStreamViewState();
+  State<CameraView> createState() => _CameraViewState();
 }
 
-class _CameraStreamViewState extends State<CameraStreamView> {
-  late CameraController _cameraController;
-
-  int _cameraIndex = -1;
-
-  void initCamera() {
-    for (var i = 0; i < widget.cameras!.length; i++) {
-      if (widget.cameras![i].lensDirection ==
-          widget.initialCameraLensDirection) {
-        _cameraIndex = i;
-        break;
-      }
-    }
-    if (_cameraIndex != -1) {
-      _startLiveFeed(widget.cameras[0]);
-    }
-  }
+class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
+  List<CameraDescription> cameras = [];
+  CameraController? cameraController;
 
   @override
-  Widget build(BuildContext context) {
-    // return Scaffold(
-    //   appBar: AppBar(
-    //     backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-    //     title: const Text('Camera'),
-    //   ),
-    //   body: _liveFeedBody(),
-    // );
-
-    if (_cameraController.value.isInitialized == false) return Container();
-
-    return Stack(
-      children: <Widget>[
-        ColoredBox(
-          color: Colors.grey.shade800,
-          child: Stack(
-            children: <Widget>[
-              Center(
-                child: CameraPreview(
-                  _cameraController,
-                  child: widget.customPaint,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Future _startLiveFeed(CameraDescription cameraDescription) async {
-    _cameraController = CameraController(
-      cameraDescription,
-      ResolutionPreset.high,
-      imageFormatGroup: Platform.isAndroid
-          ? ImageFormatGroup.nv21
-          : ImageFormatGroup.bgra8888,
-    );
-
-    try {
-      await _cameraController.initialize().then((_) {
-        if (!mounted) return;
-
-        _cameraController.startImageStream(_processCameraImage);
-        setState(() {});
-      });
-    } on CameraException catch (e) {
-      debugPrint("Camera error $e");
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (cameraController == null ||
+        cameraController?.value.isInitialized == false) {
+      return;
     }
-  }
-
-  Future<void> _stopLiveFeed() async {
-    await _cameraController.stopImageStream();
-    await _cameraController.dispose();
-  }
-
-  @override
-  void dispose() {
-    _stopLiveFeed();
-    super.dispose();
+    if (state == AppLifecycleState.inactive) {
+      cameraController?.dispose();
+    } else if (state == AppLifecycleState.resumed) {
+      _setupCameraController();
+    }
   }
 
   @override
   void initState() {
     super.initState();
-    initCamera();
+    _setupCameraController();
   }
 
-  final _orientations = {
-    DeviceOrientation.portraitUp: 0,
-    DeviceOrientation.landscapeLeft: 90,
-    DeviceOrientation.portraitDown: 180,
-    DeviceOrientation.landscapeRight: 270,
-  };
-
-  _processCameraImage(CameraImage image) {
-    final inputImage = _inputImageFromCamera(image);
-    if (inputImage == null) return;
-    widget.onImage(inputImage);
+  @override
+  Widget build(BuildContext context) {
+    final double screenHeight = MediaQuery.of(context).size.height;
+    final double screenWidth = MediaQuery.of(context).size.width;
+    return Scaffold(
+      body: _buildUI(screenHeight, screenWidth),
+    );
   }
 
-  InputImage? _inputImageFromCamera(CameraImage image) {
-    // if (_cameraController == null) return null;
-
-    final sensorOrientation = widget.cameras[0].sensorOrientation;
-    final format = InputImageFormatValue.fromRawValue(image.format.raw);
-
-    InputImageRotation? rotation;
-    if (Platform.isAndroid) {
-      var rotationCompensation =
-          _orientations[_cameraController.value.deviceOrientation];
-      if (rotationCompensation == null) return null;
-      if (widget.cameras![0].lensDirection == CameraLensDirection.front) {
-        // front-facing
-        rotationCompensation = (sensorOrientation + rotationCompensation) % 360;
-      } else {
-        // back-facing
-        rotationCompensation = (sensorOrientation - rotationCompensation) % 360;
-      }
-      rotation = InputImageRotationValue.fromRawValue(rotationCompensation);
+  Widget _buildUI(double screenHeight, double screenWidth) {
+    if (cameraController == null ||
+        cameraController?.value.isInitialized == false) {
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
     }
-    if (rotation == null) return null;
+    return SafeArea(
+      child: Column(
+        children: [
+          // Top section with black background and top icons
+          Container(
+            color: Colors.black,
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            height: screenHeight * 0.1,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  icon: Icon(
+                    Icons.arrow_back,
+                    color: Colors.white,
+                    size: screenWidth * 0.08,
+                  ),
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Go back to previous screen
+                  },
+                ),
+                IconButton(
+                  icon: Icon(
+                    // _isFlashOn ? Icons.flash_on : Icons.flash_off,
+                    Icons.flash_on,
+                    color: Colors.white,
+                    size: screenWidth * 0.08,
+                  ),
+                  onPressed: () async {
+                    // setState(() {
+                    //   _isFlashOn = !_isFlashOn;
+                    // });
+                    // await cameraController?.setFlashMode(
+                    //   _isFlashOn ? FlashMode.torch : FlashMode.off,
+                    // );
+                  },
+                ),
+              ],
+            ),
+          ),
 
-    if (format == null ||
-        (Platform.isAndroid && format != InputImageFormat.nv21) ||
-        (Platform.isIOS && format != InputImageFormat.bgra8888)) {
-      return null;
-    }
+          // Middle section for Camera Preview
+          Expanded(
+            child: AspectRatio(
+              aspectRatio: screenWidth / (screenHeight * 0.6),
+              child: CameraPreview(cameraController!),
+            ),
+          ),
 
-    if (image.planes.length != 1) return null;
-    final plane = image.planes.first;
-
-    return InputImage.fromBytes(
-      bytes: plane.bytes,
-      metadata: InputImageMetadata(
-        size: Size(image.width.toDouble(), image.height.toDouble()),
-        rotation: rotation,
-        format: format,
-        bytesPerRow: plane.bytesPerRow,
+          // Bottom section with black background and bottom icons
+          Container(
+            color: Colors.black,
+            padding: const EdgeInsets.all(16.0),
+            height: screenHeight * 0.25,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconButton(
+                  onPressed: () async {
+                    // Open gallery or perform another action
+                  },
+                  iconSize: screenWidth * 0.10,
+                  icon: const Icon(
+                    Icons.photo_library,
+                    color: Colors.white,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () async {
+                    XFile picture = await cameraController!.takePicture();
+                    Gal.putImage(
+                      picture.path,
+                    );
+                  },
+                  iconSize: screenWidth * 0.22,
+                  icon: const Icon(
+                    CupertinoIcons.circle_filled,
+                    color: Colors.white,
+                  ),
+                ),
+                IconButton(
+                  onPressed: () async {
+                    // Handle switching cameras
+                  },
+                  iconSize: screenWidth * 0.10,
+                  icon: const Icon(
+                    CupertinoIcons.arrow_2_circlepath_circle_fill,
+                    color: Colors.white,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
+  }
+
+  Future<void> _setupCameraController() async {
+    List<CameraDescription> _cameras = await availableCameras();
+    if (_cameras.isNotEmpty) {
+      setState(() {
+        cameras = _cameras;
+        cameraController = CameraController(
+          _cameras.first,
+          ResolutionPreset.max,
+        );
+      });
+      cameraController?.initialize().then((_) {
+        if (!mounted) {
+          return;
+        }
+        setState(() {});
+      }).catchError(
+        (Object e) {
+          print(e);
+        },
+      );
+    }
   }
 }
