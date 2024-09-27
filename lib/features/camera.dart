@@ -1,28 +1,41 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:gal/gal.dart';
+import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 
 class CameraView extends StatefulWidget {
-  const CameraView({super.key});
+  final List<CameraDescription> cameras;
+  final Function(InputImage inputImage) onImage;
+  final CustomPaint? customPaint;
+
+  const CameraView({
+    super.key,
+    required this.onImage,
+    this.customPaint,
+    required this.cameras,
+  });
 
   @override
   State<CameraView> createState() => _CameraViewState();
 }
 
 class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
-  List<CameraDescription> cameras = [];
-  CameraController? cameraController;
+  // List<CameraDescription> cameras = [];
+  CameraController? _cameraController;
+
+  _CameraViewState();
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    if (cameraController == null ||
-        cameraController?.value.isInitialized == false) {
+    if (_cameraController == null ||
+        _cameraController?.value.isInitialized == false) {
       return;
     }
     if (state == AppLifecycleState.inactive) {
-      cameraController?.dispose();
+      _cameraController?.dispose();
     } else if (state == AppLifecycleState.resumed) {
       _setupCameraController();
     }
@@ -44,8 +57,8 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   }
 
   Widget _buildUI(double screenHeight, double screenWidth) {
-    if (cameraController == null ||
-        cameraController?.value.isInitialized == false) {
+    if (_cameraController == null ||
+        _cameraController?.value.isInitialized == false) {
       return const Center(
         child: CircularProgressIndicator(),
       );
@@ -95,7 +108,10 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
           Expanded(
             child: AspectRatio(
               aspectRatio: screenWidth / (screenHeight * 0.6),
-              child: CameraPreview(cameraController!),
+              child: CameraPreview(
+                _cameraController!,
+                child: widget.customPaint,
+              ),
             ),
           ),
 
@@ -119,7 +135,7 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
                 ),
                 IconButton(
                   onPressed: () async {
-                    XFile picture = await cameraController!.takePicture();
+                    XFile picture = await _cameraController!.takePicture();
                     Gal.putImage(
                       picture.path,
                     );
@@ -149,16 +165,16 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   }
 
   Future<void> _setupCameraController() async {
-    List<CameraDescription> _cameras = await availableCameras();
-    if (_cameras.isNotEmpty) {
+    // List<CameraDescription> _cameras = await availableCameras();
+    if (widget.cameras.isNotEmpty) {
       setState(() {
-        cameras = _cameras;
-        cameraController = CameraController(
+        final _cameras = widget.cameras;
+        _cameraController = CameraController(
           _cameras.first,
           ResolutionPreset.max,
         );
       });
-      cameraController?.initialize().then((_) {
+      _cameraController?.initialize().then((_) {
         if (!mounted) {
           return;
         }
@@ -169,5 +185,46 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
         },
       );
     }
+  }
+
+  _processCameraImage(CameraImage image) {
+    final inputImage = _inputImageFromCamera(image);
+    if (inputImage == null) return;
+    widget.onImage(inputImage);
+  }
+
+  Uint8List _cameraImageToBytes(CameraImage image) {
+    final WriteBuffer allBytes = WriteBuffer();
+    for (Plane plane in image.planes) {
+      allBytes.putUint8List(plane.bytes);
+    }
+    final bytes = allBytes.done().buffer.asUint8List();
+    return bytes;
+  }
+
+  InputImage? _inputImageFromCamera(CameraImage image) {
+    final bytes = _cameraImageToBytes(image);
+
+    final imageRotation = InputImageRotationValue.fromRawValue(
+            widget.cameras[0].sensorOrientation) ??
+        InputImageRotation.rotation0deg;
+
+    final inputImageFormat =
+        InputImageFormatValue.fromRawValue(image.format.raw) ??
+            InputImageFormat.nv21;
+
+    int newWidth = image.planes[0].bytesPerRow;
+
+    if (_cameraController == null) return null;
+
+    return InputImage.fromBytes(
+      bytes: bytes,
+      metadata: InputImageMetadata(
+        size: Size(image.width.toDouble(), image.height.toDouble()),
+        rotation: imageRotation,
+        format: inputImageFormat,
+        bytesPerRow: image.planes.length,
+      ),
+    );
   }
 }
