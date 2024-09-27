@@ -165,11 +165,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 itemCount: filteredFeatures.length,
                 itemBuilder: (context, index) {
                   final feature = filteredFeatures[index];
-                  return Padding(
-                    padding:
-                        EdgeInsets.symmetric(vertical: screenHeight * 0.00),
-                    child: FeatureListItem(feature: feature),
-                  );
+                  return FeatureListItem(feature: feature);
                 },
               ),
             ),
