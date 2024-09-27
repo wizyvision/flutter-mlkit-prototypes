@@ -20,9 +20,12 @@ class _BarcodeScannerViewState extends State<BarcodeScannerView> {
   final BarcodeScanner _barcodeScanner = BarcodeScanner();
 
   bool _isBusy = false;
+  bool _isPaused = false;
+  late List<Barcode>? _barcodeList;
 
   CustomPaint? _customPaint;
   var _cameraLensDirection = CameraLensDirection.back;
+  var _cameraController;
 
   @override
   Widget build(BuildContext context) {
@@ -40,35 +43,53 @@ class _BarcodeScannerViewState extends State<BarcodeScannerView> {
   }
 
   Future<void> _processBarcodeImage(InputImage inputImage) async {
-    if (_isBusy || _isProcessed) return;
+    // only needed for modal pop-up
+    // if (_isBusy || _isProcessed) return;
+    if (_isBusy) return;
     _isBusy = true;
+
+    bool _isPainted = false;
 
     final barcodes = await _barcodeScanner.processImage(inputImage);
     if (inputImage.metadata?.size != null &&
         inputImage.metadata?.rotation != null) {
+      if (mounted) {
+        setState(() {
+          _barcodeList = barcodes;
+        });
+      }
+
       final painter = BarcodeDetectorPainter(
-        barcodes,
+        _barcodeList!,
         inputImage.metadata!.size,
         inputImage.metadata!.rotation,
         _cameraLensDirection,
       );
       _customPaint = CustomPaint(painter: painter);
+
+      _isPainted = true;
     }
-    if (barcodes.isNotEmpty) {
-      _isProcessed = true;
+    if (barcodes.isNotEmpty && _isPainted) {
+      // _isProcessed = true;
+
+      if (mounted) {
+        setState(() {
+          _isPaused = true;
+        });
+      }
     }
 
     _isBusy = false;
-    if (mounted && _isProcessed) {
-      showModalBottomSheet(
-        isDismissible: false,
-        context: context,
-        builder: (context) => ModalPopup(text: barcodes),
-      );
-      setState(() {});
-    } else if (mounted) {
-      setState(() {});
-    }
+    // if (mounted && _isProcessed) {
+    //   showModalBottomSheet(
+    //     isDismissible: false,
+    //     context: context,
+    //     builder: (context) => ModalPopup(text: barcodes),
+    //   );
+    //   setState(() {});
+    // } else if (mounted) {
+    //   setState(() {});
+    // }
   }
 }
 

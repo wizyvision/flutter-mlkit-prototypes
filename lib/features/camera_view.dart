@@ -33,8 +33,8 @@ class _CameraStreamViewState extends State<CameraStreamView> {
   int _cameraIndex = -1;
 
   void initCamera() {
-    for (var i = 0; i < widget.cameras!.length; i++) {
-      if (widget.cameras![i].lensDirection ==
+    for (var i = 0; i < widget.cameras.length; i++) {
+      if (widget.cameras[i].lensDirection ==
           widget.initialCameraLensDirection) {
         _cameraIndex = i;
         break;
@@ -81,7 +81,7 @@ class _CameraStreamViewState extends State<CameraStreamView> {
       cameraDescription,
       ResolutionPreset.high,
       imageFormatGroup: Platform.isAndroid
-          ? ImageFormatGroup.nv21
+          ? ImageFormatGroup.yuv420
           : ImageFormatGroup.bgra8888,
     );
 
@@ -128,7 +128,43 @@ class _CameraStreamViewState extends State<CameraStreamView> {
   }
 
   InputImage? _inputImageFromCamera(CameraImage image) {
-    // if (_cameraController == null) return null;
+    // Uint8List _cameraImageToBytes(CameraImage image)
+    // final WriteBuffer allBytes = WriteBuffer();
+    // for (Plane plane in image.planes) {
+    //     allBytes.putUint8List(plane.bytes);
+    //   }
+    //   final bytes = allBytes.done().buffer.asUint8List();
+    //   //return bytes;
+    // }
+
+    // InputImage? _inputImageFromCamera(CameraImage image) {
+    //   final bytes = _cameraImageToBytes(image);
+
+    //   final imageRotation = InputImageRotationValue.fromRawValue(
+    //           widget.cameras[0].sensorOrientation) ??
+    //       InputImageRotation.rotation0deg;
+
+    //   final inputImageFormat =
+    //       InputImageFormatValue.fromRawValue(image.format.raw) ??
+    //           InputImageFormat.nv21;
+
+    //   int newWidth = image.planes[0].bytesPerRow;
+
+    //   final inputImageData = InputImageMetadata(
+    //     size: Size(newWidth.toDouble(), image.height.toDouble()),
+    //     rotation: imageRotation,
+    //     format: inputImageFormat,
+    //     bytesPerRow: image.planes.length,
+    //   );
+    //   final inputImage =
+    //       InputImage.fromBytes(bytes: bytes, metadata: inputImageData);
+    //   return inputImage;
+
+    final WriteBuffer allBytes = WriteBuffer();
+    for (Plane plane in image.planes) {
+      allBytes.putUint8List(plane.bytes);
+    }
+    final bytes = allBytes.done().buffer.asUint8List();
 
     final sensorOrientation = widget.cameras[0].sensorOrientation;
     final format = InputImageFormatValue.fromRawValue(image.format.raw);
@@ -138,7 +174,7 @@ class _CameraStreamViewState extends State<CameraStreamView> {
       var rotationCompensation =
           _orientations[_cameraController.value.deviceOrientation];
       if (rotationCompensation == null) return null;
-      if (widget.cameras![0].lensDirection == CameraLensDirection.front) {
+      if (widget.cameras[0].lensDirection == CameraLensDirection.front) {
         // front-facing
         rotationCompensation = (sensorOrientation + rotationCompensation) % 360;
       } else {
@@ -147,25 +183,29 @@ class _CameraStreamViewState extends State<CameraStreamView> {
       }
       rotation = InputImageRotationValue.fromRawValue(rotationCompensation);
     }
+    // rotation = InputImageRotationValue.fromRawValue(
+    //         widget.cameras[0].sensorOrientation) ??
+    //     InputImageRotation.rotation0deg;
     if (rotation == null) return null;
 
     if (format == null ||
-        (Platform.isAndroid && format != InputImageFormat.nv21) ||
         (Platform.isIOS && format != InputImageFormat.bgra8888)) {
       return null;
     }
 
-    if (image.planes.length != 1) return null;
-    final plane = image.planes.first;
+    // if (image.planes.length != 1) return null;
+    // final plane = image.planes.first;
 
-    return InputImage.fromBytes(
-      bytes: plane.bytes,
+    final inputImageData = InputImage.fromBytes(
+      bytes: bytes,
       metadata: InputImageMetadata(
         size: Size(image.width.toDouble(), image.height.toDouble()),
         rotation: rotation,
         format: format,
-        bytesPerRow: plane.bytesPerRow,
+        bytesPerRow: image.planes.length,
       ),
     );
+
+    return inputImageData;
   }
 }
