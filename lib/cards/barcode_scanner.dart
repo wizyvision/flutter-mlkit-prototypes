@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:camera/camera.dart';
 import 'package:ml_kit_implementation/features/barcode_scanner_view.dart';
 import 'package:ml_kit_implementation/features/ml_kit_feature.dart';
 
@@ -12,11 +13,15 @@ class BarcodeScannerFeature extends MLKitFeature {
         );
 
   @override
-  void launch(BuildContext context) {
+  void launch(BuildContext context) async {
+    // Obtain a list of the available cameras on the device.
+    final cameras = await availableCameras();
+
+    // Navigate to the BarcodeScannerView and pass the list of cameras.
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => BarcodeScannerView(),
+        builder: (context) => BarcodeScannerView(cameras: cameras),
       ),
     );
   }
