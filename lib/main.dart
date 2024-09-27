@@ -1,3 +1,4 @@
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:ml_kit_implementation/cards/barcode_scanner.dart';
 import 'package:ml_kit_implementation/cards/document_scanner.dart';
@@ -35,15 +36,17 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  List<MLKitFeature> filteredFeatures = [];
+  String searchQuery = '';
+  String sortBy = 'Name';
+  List<CameraDescription> cameras = [];
+  CameraController? cameraController;
+
   final List<MLKitFeature> features = [
     DocumentScannerFeature(),
     BarcodeScannerFeature(),
     // Add more features here...
   ];
-
-  List<MLKitFeature> filteredFeatures = [];
-  String searchQuery = '';
-  String sortBy = 'Name';
 
   @override
   void initState() {
