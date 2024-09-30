@@ -36,7 +36,8 @@ class _BarcodeScannerViewState extends State<BarcodeScannerView> {
   }
 
   Future<void> _processBarcodeImage(InputImage inputImage) async {
-    if (_isBusy || _isProcessed) return;
+    // if (_isBusy || _isProcessed) return;
+    if (_isBusy) return;
     _isBusy = true;
 
     final barcodes = await _barcodeScanner.processImage(inputImage);

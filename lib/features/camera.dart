@@ -23,7 +23,7 @@ class CameraView extends StatefulWidget {
 
 class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   // List<CameraDescription> cameras = [];
-  CameraController? _cameraController;
+  late CameraController? _cameraController;
 
   _CameraViewState();
 
@@ -37,14 +37,14 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
     if (state == AppLifecycleState.inactive) {
       _cameraController?.dispose();
     } else if (state == AppLifecycleState.resumed) {
-      _setupCameraController();
+      _setupCameraController(widget.cameras.first);
     }
   }
 
   @override
   void initState() {
     super.initState();
-    _setupCameraController();
+    _setupCameraController(widget.cameras.first);
   }
 
   @override
@@ -164,26 +164,45 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
     );
   }
 
-  Future<void> _setupCameraController() async {
+  Future<void> _setupCameraController(
+      CameraDescription cameraDescription) async {
     // List<CameraDescription> _cameras = await availableCameras();
-    if (widget.cameras.isNotEmpty) {
-      setState(() {
-        final _cameras = widget.cameras;
-        _cameraController = CameraController(
-          _cameras.first,
-          ResolutionPreset.max,
-        );
-      });
-      _cameraController?.initialize().then((_) {
-        if (!mounted) {
-          return;
-        }
+    // with if statement, widget camera is only initiatlized once and imageStream / inputimagefromcamera only happens once
+    // if (widget.cameras.isNotEmpty) {
+    //   setState(() {
+    //     final _cameras = widget.cameras;
+    //     _cameraController = CameraController(
+    //       _cameras.first,
+    //       ResolutionPreset.max,
+    //     );
+    //   });
+    //   _cameraController?.initialize().then((_) {
+    //     if (!mounted) {
+    //       return;
+    //     }
+    //     _cameraController!.startImageStream(_inputImageFromCamera);
+    //     setState(() {});
+    //   }).catchError(
+    //     (Object e) {
+    //       print(e);
+    //     },
+    //   );
+    // }
+
+    _cameraController = CameraController(
+      cameraDescription,
+      ResolutionPreset.high,
+    );
+
+    try {
+      await _cameraController!.initialize().then((_) {
+        if (!mounted) return;
+
+        _cameraController!.startImageStream(_processCameraImage);
         setState(() {});
-      }).catchError(
-        (Object e) {
-          print(e);
-        },
-      );
+      });
+    } on CameraException catch (e) {
+      debugPrint("Camera error $e");
     }
   }
 
