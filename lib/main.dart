@@ -1,3 +1,4 @@
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:ml_kit_implementation/cards/barcode_scanner.dart';
 import 'package:ml_kit_implementation/cards/document_scanner.dart';
@@ -20,8 +21,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home:
-          const MyHomePage(), // Change this to HomePage to make it the default screen
+      home: const MyHomePage(),
       debugShowCheckedModeBanner: false,
     );
   }
@@ -35,15 +35,17 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  List<MLKitFeature> filteredFeatures = [];
+  String searchQuery = '';
+  String sortBy = 'Name';
+  List<CameraDescription> cameras = [];
+  CameraController? cameraController;
+
   final List<MLKitFeature> features = [
     DocumentScannerFeature(),
     BarcodeScannerFeature(),
     // Add more features here...
   ];
-
-  List<MLKitFeature> filteredFeatures = [];
-  String searchQuery = '';
-  String sortBy = 'Name';
 
   @override
   void initState() {
@@ -74,37 +76,45 @@ class _MyHomePageState extends State<MyHomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final double screenHeight = MediaQuery.of(context).size.height;
+    final double screenWidth = MediaQuery.of(context).size.width;
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: Column(
         children: [
-          const SizedBox(height: 40),
+          SizedBox(height: screenHeight * 0.05), // Adaptive top padding
+
+          // Title Section
           Container(
-            width: 380,
+            width: screenWidth * 0.9, // Adaptive width
             child: AppBar(
               backgroundColor: Colors.white,
               title: const Text(
                 'ML Kit Features',
                 style: TextStyle(
                   fontFamily: 'Montserrat-ExtraBold',
+                  fontSize: 24, // Adaptive font size
                 ),
               ),
             ),
           ),
 
-          const SizedBox(height: 10),
+          SizedBox(height: screenHeight * 0.02), // Adaptive spacing
 
           // Search Box
           Center(
             child: Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: SizedBox(
-                width: 350,
+                width: screenWidth * 0.9, // Adaptive width
                 child: TextField(
                   decoration: InputDecoration(
                     labelText: 'Search Features',
-                    labelStyle:
-                        const TextStyle(fontFamily: 'Montserrat-Medium'),
+                    labelStyle: const TextStyle(
+                      fontFamily: 'Montserrat-Medium',
+                      fontSize: 16, // Adaptive font size
+                    ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10.0),
                     ),
@@ -116,13 +126,13 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
           ),
 
-          const SizedBox(height: 20),
+          SizedBox(height: screenHeight * 0.03), // Adaptive spacing
 
           // Sort Dropdown
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Container(
-              width: 340, // Ensure dropdown width matches the TextField width
+              width: screenWidth * 0.85, // Adaptive width
               child: DropdownButtonFormField<String>(
                 value: sortBy,
                 items: <String>['Name', 'Description'].map((String value) {
@@ -131,7 +141,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     child: Text(
                       value,
                       style: const TextStyle(
-                        color: Colors.black, // Text color of dropdown items
+                        color: Colors.black,
                         fontFamily: 'Montserrat-SemiBold',
                       ),
                     ),
@@ -150,15 +160,12 @@ class _MyHomePageState extends State<MyHomePage> {
           // List of Features
           Expanded(
             child: Container(
-              width: 350,
+              width: screenWidth * 0.9, // Adaptive width
               child: ListView.builder(
                 itemCount: filteredFeatures.length,
                 itemBuilder: (context, index) {
                   final feature = filteredFeatures[index];
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 0.0),
-                    child: FeatureListItem(feature: feature),
-                  );
+                  return FeatureListItem(feature: feature);
                 },
               ),
             ),

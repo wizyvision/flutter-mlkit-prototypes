@@ -26,6 +26,8 @@ class DocumentScannerFeature extends MLKitFeature {
 }
 
 class ScannerScreen extends StatefulWidget {
+  const ScannerScreen({super.key});
+
   @override
   _ScannerScreenState createState() => _ScannerScreenState();
 }
