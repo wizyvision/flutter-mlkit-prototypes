@@ -1,124 +1,120 @@
 import 'dart:io';
-import 'dart:ui';
 import 'dart:ui' as ui;
+import 'dart:math';
+import 'dart:ui';
 
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
+import 'package:ml_kit_implementation/helpers.dart';
 
-import 'coordinates_translator.dart';
-
-class BarcodeDetectorPainter extends CustomPainter {
-  BarcodeDetectorPainter(
-    this.barcodes,
-    this.imageSize,
-    this.rotation,
-    this.cameraLensDirection,
-  );
+class BarcodePainter extends CustomPainter {
+  BarcodePainter({
+    required this.barcodes,
+    required this.imageSize,
+    required this.rotation,
+    required this.cameraLensDirection,
+    this.selectedBarcode,
+  });
 
   final List<Barcode> barcodes;
   final Size imageSize;
   final InputImageRotation rotation;
   final CameraLensDirection cameraLensDirection;
+  final Barcode? selectedBarcode;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Paint paint = Paint()
+    final Paint normalPaint = Paint()
+      ..color = Colors.yellow
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 3.0
-      ..color = Colors.lightGreenAccent;
+      ..strokeWidth = 2.0;
 
-    final Paint background = Paint()..color = Color(0x99000000);
+    final Paint selectedPaint = Paint()
+      ..color = Colors.green
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 4.0;
 
     for (final Barcode barcode in barcodes) {
+      final Rect barcodeRect = scaleRectToScreen(
+        barcode.boundingBox,
+        imageSize,
+        size,
+      );
+
+      final Paint paintToUse =
+          barcode == selectedBarcode ? selectedPaint : normalPaint;
+
+      // Draw barcode rectangle
+      canvas.drawRect(
+        barcodeRect,
+        paintToUse,
+      );
+
+      // Draw barcode text
       final ParagraphBuilder builder = ParagraphBuilder(
         ParagraphStyle(
-            textAlign: TextAlign.left,
-            fontSize: 16,
-            textDirection: TextDirection.ltr),
+          textAlign: TextAlign.left,
+          fontSize: 16,
+          textDirection: TextDirection.ltr,
+        ),
       );
-      builder.pushStyle(
-          ui.TextStyle(color: Colors.lightGreenAccent, background: background));
+      builder.pushStyle(ui.TextStyle(color: Colors.lightGreenAccent));
       builder.addText('${barcode.displayValue}');
       builder.pop();
 
-      final left = translateX(
-        barcode.boundingBox.left,
-        size,
-        imageSize,
-        rotation,
-        cameraLensDirection,
-      );
-      final top = translateY(
-        barcode.boundingBox.top,
-        size,
-        imageSize,
-        rotation,
-        cameraLensDirection,
-      );
-      final right = translateX(
-        barcode.boundingBox.right,
-        size,
-        imageSize,
-        rotation,
-        cameraLensDirection,
-      );
-      // final bottom = translateY(
-      //   barcode.boundingBox.bottom,
-      //   size,
-      //   imageSize,
-      //   rotation,
-      //   cameraLensDirection,
-      // );
-      //
-      // // Draw a bounding rectangle around the barcode
-      // canvas.drawRect(
-      //   Rect.fromLTRB(left, top, right, bottom),
-      //   paint,
-      // );
+      final double left = barcodeRect.left;
+      final double top = barcodeRect.top;
 
-      final List<Offset> cornerPoints = <Offset>[];
-      for (final point in barcode.cornerPoints) {
-        final double x = translateX(
-          point.x.toDouble(),
-          size,
-          imageSize,
-          rotation,
-          cameraLensDirection,
-        );
-        final double y = translateY(
-          point.y.toDouble(),
-          size,
-          imageSize,
-          rotation,
-          cameraLensDirection,
-        );
-
-        cornerPoints.add(Offset(x, y));
-      }
-
-      // Add the first point to close the polygon
-      cornerPoints.add(cornerPoints.first);
-      canvas.drawPoints(PointMode.polygon, cornerPoints, paint);
-
+      // Draw text above the barcode
       canvas.drawParagraph(
-        builder.build()
-          ..layout(ParagraphConstraints(
-            width: (right - left).abs(),
-          )),
-        Offset(
-            Platform.isAndroid &&
-                    cameraLensDirection == CameraLensDirection.front
-                ? right
-                : left,
-            top),
+        builder.build()..layout(ParagraphConstraints(width: barcodeRect.width)),
+        Offset(left, top - 20),
       );
+
+      // // Draw corner points as small circles
+      // final List<Offset> cornerPoints =
+      //     barcode.cornerPoints.map((Point<int> point) {
+      //   return Offset(
+      //     translateX(point.x.toDouble(), size, imageSize, rotation,
+      //         cameraLensDirection),
+      //     translateY(point.y.toDouble(), size, imageSize, rotation,
+      //         cameraLensDirection),
+      //   );
+      // }).toList();
+
+      // // Draw corner points as small circles
+      // final Paint cornerPointPaint = Paint()
+      //   ..color = Colors.red
+      //   ..style = PaintingStyle.fill;
+
+      // for (final Offset point in cornerPoints) {
+      //   canvas.drawCircle(point, 4.0, cornerPointPaint);
+      // }
     }
   }
 
   @override
-  bool shouldRepaint(BarcodeDetectorPainter oldDelegate) {
-    return oldDelegate.imageSize != imageSize ||
-        oldDelegate.barcodes != barcodes;
+  bool shouldRepaint(CustomPainter oldDelegate) {
+    return true;
+  }
+
+  double translateX(double x, Size canvasSize, Size imageSize,
+      InputImageRotation rotation, CameraLensDirection cameraLensDirection) {
+    if (rotation == InputImageRotation.rotation90deg) {
+      return x * canvasSize.height / imageSize.width;
+    } else if (rotation == InputImageRotation.rotation270deg) {
+      return canvasSize.width - (x * canvasSize.height / imageSize.width);
+    }
+    return x * canvasSize.width / imageSize.width;
+  }
+
+  double translateY(double y, Size canvasSize, Size imageSize,
+      InputImageRotation rotation, CameraLensDirection cameraLensDirection) {
+    if (rotation == InputImageRotation.rotation90deg ||
+        rotation == InputImageRotation.rotation270deg) {
+      return y * canvasSize.width / imageSize.height;
+    }
+    return y * canvasSize.height / imageSize.height;
   }
 }

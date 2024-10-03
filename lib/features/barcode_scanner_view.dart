@@ -1,197 +1,167 @@
-// import 'package:camera/camera.dart';
-// import 'package:flutter/material.dart';
-// import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
-// import 'package:ml_kit_implementation/enums.dart';
-// import 'package:ml_kit_implementation/features/camera_view.dart';
-// import 'package:ml_kit_implementation/features/painters/barcode_detector_painter.dart';
+import 'package:flutter/material.dart';
+import 'package:camera/camera.dart';
+import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
+import 'package:ml_kit_implementation/features/painters/barcode_detector_painter.dart';
+import 'package:ml_kit_implementation/helpers.dart';
+import 'camera.dart'; // Import your CameraView from camera.dart
 
-// bool _isProcessed = false;
+class BarcodeScannerView extends StatefulWidget {
+  @override
+  _BarcodeScannerViewState createState() => _BarcodeScannerViewState();
+}
 
-// class BarcodeScannerView extends StatefulWidget {
-//   final List<CameraDescription> cameras;
+class _BarcodeScannerViewState extends State<BarcodeScannerView> {
+  late BarcodeScanner barcodeScanner;
+  bool _isProcessing = false;
+  bool _isModalVisible = false;
+  List<Barcode> _detectedBarcodes = [];
+  Barcode? _selectedBarcode;
+  Size? _imageSize;
+  InputImageRotation _imageRotation = InputImageRotation.rotation0deg;
+  CameraLensDirection _cameraLensDirection = CameraLensDirection.back;
 
-//   const BarcodeScannerView({super.key, required this.cameras});
+  @override
+  void initState() {
+    super.initState();
+    _initializeBarcodeScanner();
+  }
 
-//   @override
-//   State<BarcodeScannerView> createState() => _BarcodeScannerViewState();
-// }
+  void _initializeBarcodeScanner() {
+    barcodeScanner = BarcodeScanner();
+  }
 
-// class _BarcodeScannerViewState extends State<BarcodeScannerView> {
-//   final BarcodeScanner _barcodeScanner = BarcodeScanner();
+  @override
+  void dispose() {
+    barcodeScanner.close();
+    super.dispose();
+  }
 
-//   bool _isBusy = false;
+  @override
+  Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cameraPreviewHeight =
+        screenHeight * 0.6; // Fixed height for CameraPreview
 
+    return Stack(
+      children: [
+        // CameraView as the background
+        CameraView(
+          onImageCaptured: (XFile picture) {
+            // Optional: Handle image capture
+          },
+          onCameraImage: (CameraImage image) {
+            if (!_isProcessing && !_isModalVisible) {
+              _isProcessing = true;
+              _processCameraImage(image);
+            }
+          },
+        ),
+        // Use Positioned to control the placement of the barcode painter
+        if (_detectedBarcodes.isNotEmpty && _imageSize != null)
+          Positioned(
+            top: (screenHeight - cameraPreviewHeight) / 2, // Center vertically
+            left: 0,
+            child: GestureDetector(
+              onTapUp: (details) {
+                _onTapBarcode(details.localPosition, context);
+              },
+              child: CustomPaint(
+                size: Size(screenWidth,
+                    cameraPreviewHeight), // Match the camera preview dimensions
+                painter: BarcodePainter(
+                  barcodes: _detectedBarcodes,
+                  imageSize: _imageSize!,
+                  selectedBarcode: _selectedBarcode,
+                  rotation: _imageRotation,
+                  cameraLensDirection: _cameraLensDirection,
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
 
+  void _onTapBarcode(Offset localPosition, BuildContext context) {
+    for (var barcode in _detectedBarcodes) {
+      final rect = scaleRectToScreen(
+        barcode.boundingBox,
+        _imageSize!,
+        Size(MediaQuery.of(context).size.width,
+            MediaQuery.of(context).size.height),
+      );
 
-//   @override
-//   Widget build(BuildContext context) {
-//     return Scaffold(
-//       appBar: AppBar(
-//         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-//         title: const Text('Camera'),
-//       ),
-//       body: CameraStreamView(
-//         onImage: _processBarcodeImage,
-//         cameras: widget.cameras,
-//         customPaint: _customPaint,
-//       ),
-//     );
-//   }
+      // Check if the tap position is within the barcode rectangle
+      if (rect.contains(localPosition)) {
+        setState(() {
+          _selectedBarcode = barcode; // Set selected barcode
+        });
 
-//   Future<void> _processBarcodeImage(InputImage inputImage) async {
-//     if (_isBusy || _isProcessed) return;
-//     _isBusy = true;
+        _showScanAnimation(barcode);
+        break; // Exit loop after selecting a barcode
+      }
+    }
+  }
 
-//     final barcodes = await _barcodeScanner.processImage(inputImage);
-//     if (inputImage.metadata?.size != null &&
-//         inputImage.metadata?.rotation != null) {
-//       final painter = BarcodeDetectorPainter(
-//         barcodes,
-//         inputImage.metadata!.size,
-//         inputImage.metadata!.rotation,
-//         _cameraLensDirection,
-//       );
-//       _customPaint = CustomPaint(painter: painter);
-//     }
-//     if (barcodes.isNotEmpty) {
-//       _isProcessed = true;
-//     }
+  void _showScanAnimation(Barcode barcode) {
+    Future.delayed(const Duration(milliseconds: 500), () {
+      if (mounted && _selectedBarcode != null) {
+        _showResultModal(_selectedBarcode!.displayValue ?? 'No result');
+      }
+    });
+  }
 
-//     _isBusy = false;
-//     if (mounted && _isProcessed) {
-//       showModalBottomSheet(
-//         isDismissible: false,
-//         context: context,
-//         builder: (context) => ModalPopup(text: barcodes),
-//       );
-//       setState(() {});
-//     } else if (mounted) {
-//       setState(() {});
-//     }
-//   }
-// }
+  void _processCameraImage(CameraImage image) async {
+    try {
+      InputImage inputImage = convertCameraImageToInputImage(
+        image,
+        _imageRotation,
+        _imageSize,
+      );
 
-// class ModalPopup extends StatefulWidget {
-//   final List<Barcode> text;
+      final List<Barcode> barcodes =
+          await barcodeScanner.processImage(inputImage);
 
-//   const ModalPopup({
-//     super.key,
-//     required this.text,
-//   });
+      if (mounted) {
+        setState(() {
+          _detectedBarcodes = barcodes;
+          _imageSize = Size(image.width.toDouble(), image.height.toDouble());
+        });
+      }
+    } catch (e) {
+      print('Error processing camera image: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+        });
+      }
+    }
+  }
 
-//   @override
-//   State<ModalPopup> createState() => _ModalPopupState();
-// }
-
-// class _ModalPopupState extends State<ModalPopup> {
-//   int counter = -1;
-//   TextAlign _bgIconAlignment = TextAlign.start;
-//   // TextDirection _bgIconAlignment = TextDirection.ltr;
-
-//   final textController = TextEditingController();
-
-//   @override
-//   void initState() {
-//     counter = widget.text.length;
-
-//     super.initState();
-//   }
-
-//   @override
-//   void dispose() {
-//     _isProcessed = false;
-
-//     super.dispose();
-//   }
-
-//   void _returnToCamera() {
-//     Navigator.pop(context);
-//   }
-
-//   Widget _background(Enum bgButton) {
-//     switch (bgButton) {
-//       case DismissibleBGFormat.start:
-//         _bgIconAlignment = TextAlign.start;
-//         // _bgIconAlignment = TextDirection.ltr;
-
-//         break;
-//       case DismissibleBGFormat.end:
-//         _bgIconAlignment = TextAlign.end;
-//       // _bgIconAlignment = TextDirection.rtl;
-
-//       default:
-//         _bgIconAlignment = TextAlign.start;
-//       // _bgIconAlignment = TextDirection.ltr;
-//     }
-
-//     return Container(
-//         margin: const EdgeInsets.fromLTRB(0.0, 12.0, 0.0, 12.0),
-//         decoration: BoxDecoration(
-//           borderRadius: BorderRadius.circular(6.0),
-//           color: Colors.red,
-//         ),
-//         child: Padding(
-//           padding: const EdgeInsets.all(8.0),
-//           child: Text(
-//             'Delete',
-//             style: const TextStyle(color: Colors.white),
-//             textAlign: _bgIconAlignment,
-//           ),
-//         ));
-//   }
-
-//   @override
-//   Widget build(BuildContext context) {
-//     return Padding(
-//       padding: const EdgeInsets.all(16.0),
-//       child: Column(
-//         children: [
-//           Expanded(
-//             flex: 0,
-//             child: ListTile(
-//               title: const Text('Barcode(s):'),
-//               trailing: IconButton(
-//                 icon: const Icon(Icons.cancel_rounded),
-//                 onPressed: () {
-//                   _returnToCamera();
-//                 },
-//               ),
-//             ),
-//           ),
-//           Expanded(
-//             flex: 1,
-//             child: ListView.builder(
-//               itemCount: widget.text.length,
-//               itemBuilder: (context, index) {
-//                 final barcode = widget.text[index].displayValue!;
-//                 return Dismissible(
-//                   key: UniqueKey(),
-//                   background: _background(DismissibleBGFormat.start),
-//                   secondaryBackground: _background(DismissibleBGFormat.end),
-//                   child: Container(
-//                     padding: const EdgeInsets.all(8.0),
-//                     margin: const EdgeInsets.fromLTRB(0.0, 8.0, 0.0, 8.0),
-//                     decoration: BoxDecoration(
-//                         color: Colors.grey.shade300,
-//                         borderRadius: BorderRadius.circular(8.0)),
-//                     child: ListTile(
-//                       title: Text(barcode),
-//                       trailing: const Icon(Icons.keyboard_arrow_right_rounded),
-//                     ),
-//                   ),
-//                   onDismissed: (direction) {
-//                     // counts length of List<Barcode>, deducts 1 every onDismissed until 0
-//                     counter--;
-//                     if (counter == 0) {
-//                       _returnToCamera();
-//                     }
-//                   },
-//                 );
-//               },
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-// }
+  void _showResultModal(String result) {
+    _isModalVisible = true;
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Barcode Result'),
+          content: Text(result),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                setState(() {
+                  _isModalVisible = false;
+                  _selectedBarcode = null; // Clear selected barcode
+                });
+              },
+              child: const Text('OK'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}

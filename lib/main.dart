@@ -2,6 +2,7 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:ml_kit_implementation/cards/barcode_scanner.dart';
 import 'package:ml_kit_implementation/cards/document_scanner.dart';
+import 'package:ml_kit_implementation/cards/object_tracking.dart';
 import 'package:ml_kit_implementation/features/ml_kit_feature.dart';
 import 'package:ml_kit_implementation/widgets/feature_list_item.dart';
 
@@ -44,6 +45,7 @@ class _MyHomePageState extends State<MyHomePage> {
   final List<MLKitFeature> features = [
     DocumentScannerFeature(),
     BarcodeScannerFeature(),
+    ObjectTrackingFeature(),
     // Add more features here...
   ];
 

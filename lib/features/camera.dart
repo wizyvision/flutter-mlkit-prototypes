@@ -6,7 +6,16 @@ import 'package:gal/gal.dart';
 import 'dart:async';
 
 class CameraView extends StatefulWidget {
-  const CameraView({super.key});
+  final Function(XFile picture) onImageCaptured;
+  final Function(CameraImage image) onCameraImage;
+  final Widget? overlay;
+
+  const CameraView({
+    super.key,
+    required this.onImageCaptured,
+    required this.onCameraImage,
+    this.overlay,
+  });
 
   @override
   State<CameraView> createState() => _CameraViewState();
@@ -27,14 +36,16 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
     }
     if (state == AppLifecycleState.inactive) {
       cameraController?.dispose();
+      cameraController = null; // Prevent reusing the disposed controller
     } else if (state == AppLifecycleState.resumed) {
-      _setupCameraController();
+      _setupCameraController(); // Reinitialize the camera controller
     }
   }
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _setupCameraController();
   }
 
@@ -42,6 +53,7 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   void dispose() {
     cameraController?.dispose();
     _zoomTimer?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
 
@@ -49,6 +61,7 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final double screenHeight = MediaQuery.of(context).size.height;
     final double screenWidth = MediaQuery.of(context).size.width;
+
     return Scaffold(
       body: ChangeNotifierProvider(
         create: (_) => cameraState,
@@ -57,6 +70,7 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
             return Stack(
               children: [
                 _buildUI(screenHeight, screenWidth, state),
+                if (widget.overlay != null) widget.overlay!,
                 _buildFocusSquare(),
                 _buildZoomIndicator(screenHeight),
               ],
@@ -69,9 +83,7 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
 
   Widget _buildUI(double screenHeight, double screenWidth, CameraState state) {
     if (cameraController == null || !cameraController!.value.isInitialized) {
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     return SafeArea(
@@ -93,38 +105,56 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
           }
         },
         onTapDown: (TapDownDetails details) {
-          // Convert local position to normalized focus point
           final RenderBox renderBox = context.findRenderObject() as RenderBox;
           Offset localPosition =
               renderBox.globalToLocal(details.globalPosition);
-          double normalizedX = localPosition.dx / renderBox.size.width;
-          double normalizedY = localPosition.dy / renderBox.size.height;
 
-          // Set the focus at the tapped position
-          state.setFocus(Offset(normalizedX, normalizedY));
-          _setCameraFocus(normalizedX, normalizedY);
+          // Define bounds for CameraPreview area
+          double previewHeight = screenHeight * 0.6;
+          double topLimit = (screenHeight - previewHeight) / 2;
+          double bottomLimit = topLimit + previewHeight;
 
-          // If focus is locked, unlock it
-          if (state.isFocusLocked) {
-            state.unlockFocus();
+          // Only proceed if tap is within CameraPreview area
+          if (localPosition.dy >= topLimit && localPosition.dy <= bottomLimit) {
+            double normalizedX = localPosition.dx / renderBox.size.width;
+            double normalizedY = (localPosition.dy - topLimit) / previewHeight;
+
+            state.setFocus(Offset(normalizedX, normalizedY));
+            _setCameraFocus(normalizedX, normalizedY);
+
+            // Show focus indicator and set timer to hide it after tapping elsewhere
+            state.showFocusIndicator();
+            Future.delayed(const Duration(seconds: 1), () {
+              if (!state.isFocusLocked) {
+                state.hideFocusIndicator();
+              }
+            });
+          } else {
+            // If tapping outside, hide the focus indicator
+            if (state.showFocusSquare) {
+              state.hideFocusIndicator();
+            }
           }
         },
         onLongPressStart: (details) {
-          // Convert local position to normalized focus point
           final RenderBox renderBox = context.findRenderObject() as RenderBox;
           Offset localPosition =
               renderBox.globalToLocal(details.globalPosition);
-          double normalizedX = localPosition.dx / renderBox.size.width;
-          double normalizedY = localPosition.dy / renderBox.size.height;
 
-          // Lock focus and set the focus point
-          state.lockFocus(Offset(normalizedX, normalizedY));
-          _setCameraFocus(normalizedX, normalizedY); // Set focus
-        },
-        onTap: () {
-          // Hide the focus square and unlock the focus when tapping outside
-          if (cameraState.isFocusLocked) {
-            state.unlockFocus(); // Unlock focus
+          double previewHeight = screenHeight * 0.6;
+          double topLimit = (screenHeight - previewHeight) / 2;
+          double bottomLimit = topLimit + previewHeight;
+
+          // Only lock focus if long press is within CameraPreview area
+          if (localPosition.dy >= topLimit && localPosition.dy <= bottomLimit) {
+            double normalizedX = localPosition.dx / renderBox.size.width;
+            double normalizedY = (localPosition.dy - topLimit) / previewHeight;
+
+            state.lockFocus(Offset(normalizedX, normalizedY));
+            _setCameraFocus(normalizedX, normalizedY);
+
+            // Show focus indicator and set timer to hide it after a delay
+            state.showFocusIndicator();
           }
         },
         child: Column(
@@ -132,7 +162,7 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
             _buildTopControls(screenWidth),
             Expanded(
               child: AspectRatio(
-                aspectRatio: screenWidth / (screenHeight * 0.6),
+                aspectRatio: cameraController!.value.aspectRatio,
                 child: CameraPreview(cameraController!),
               ),
             ),
@@ -202,6 +232,8 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
           IconButton(
             onPressed: () async {
               XFile picture = await cameraController!.takePicture();
+              widget.onImageCaptured(
+                  picture); // Call the callback with the captured image
               Gal.putImage(picture.path); // Save the image to gallery
             },
             iconSize: screenWidth * 0.22,
@@ -252,82 +284,70 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   }
 
   Widget _buildFocusSquare() {
-    if (!cameraState.showFocusSquare || cameraState.focusPoint == null)
-      return Container();
+    if (!cameraState.showFocusSquare) return const SizedBox.shrink();
 
     return Positioned(
-      left: cameraState.focusPoint!.dx * MediaQuery.of(context).size.width - 40,
-      top: cameraState.focusPoint!.dy * MediaQuery.of(context).size.height - 40,
+      left: cameraState.focusPoint.dx - 35,
+      top: cameraState.focusPoint.dy - 35,
       child: Container(
-        width: 80,
-        height: 80,
+        width: 70,
+        height: 70,
         decoration: BoxDecoration(
-          shape: BoxShape.rectangle,
           border: Border.all(color: Colors.yellow, width: 2),
+          shape: BoxShape.rectangle,
         ),
       ),
     );
   }
 
-  Future<void> _setupCameraController() async {
-    List<CameraDescription> _cameras = await availableCameras();
-    if (_cameras.isNotEmpty) {
-      cameraController = CameraController(
-        _cameras.first,
-        ResolutionPreset.max,
-      );
-      await cameraController?.initialize();
-      cameraState.setZoomLevels(
-        await cameraController!.getMinZoomLevel(),
-        await cameraController!.getMaxZoomLevel(),
-      );
-      setState(() {});
+  void _setupCameraController() async {
+    if (cameras.isEmpty) {
+      cameras = await availableCameras();
     }
+    if (cameraController != null) return;
+
+    cameraController = CameraController(cameras[0], ResolutionPreset.high);
+    await cameraController?.initialize();
+    setState(() {});
+
+    cameraController?.startImageStream((CameraImage image) {
+      widget.onCameraImage(image); // Call the callback with the camera image
+    });
   }
 }
 
-class CameraState extends ChangeNotifier {
+class CameraState with ChangeNotifier {
   double zoomLevel = 1.0;
   double minZoomLevel = 1.0;
-  double maxZoomLevel = 10.0;
-  Offset? focusPoint;
+  double maxZoomLevel = 8.0;
+  Offset focusPoint = Offset(0.5, 0.5);
   bool showFocusSquare = false;
   bool isFocusLocked = false;
 
-  void setZoomLevels(double minZoom, double maxZoom) {
-    minZoomLevel = minZoom;
-    maxZoomLevel = maxZoom;
+  void updateZoom(double value) {
+    zoomLevel = value;
     notifyListeners();
   }
 
-  void updateZoom(double newZoom) {
-    zoomLevel = newZoom.clamp(minZoomLevel, maxZoomLevel);
-    notifyListeners();
-  }
-
-  void setFocus(Offset position) {
-    if (isFocusLocked) return;
-
-    focusPoint = position;
+  void setFocus(Offset point) {
+    focusPoint = point;
     showFocusSquare = true;
     notifyListeners();
-
-    Future.delayed(const Duration(milliseconds: 800), () {
-      showFocusSquare = false;
-      notifyListeners();
-    });
   }
 
-  void lockFocus(Offset position) {
-    isFocusLocked = true;
-    focusPoint = position;
-    showFocusSquare = true; // Keep the indicator visible while locked
+  void showFocusIndicator() {
+    showFocusSquare = true;
     notifyListeners();
   }
 
-  void unlockFocus() {
-    isFocusLocked = false;
-    showFocusSquare = false; // Hide the indicator when unlocking
+  void hideFocusIndicator() {
+    showFocusSquare = false;
+    notifyListeners();
+  }
+
+  void lockFocus(Offset point) {
+    isFocusLocked = true;
+    focusPoint = point;
     notifyListeners();
   }
 }

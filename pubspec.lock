@@ -281,7 +281,7 @@ packages:
     source: hosted
     version: "0.11.1"
   google_mlkit_object_detection:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: google_mlkit_object_detection
       sha256: "8e1d936c81bf33e1c5658a21487af1a6ce0a86d1a21b610b888a4578f8e7c9d1"

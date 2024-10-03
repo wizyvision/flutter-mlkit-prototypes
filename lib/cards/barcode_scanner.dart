@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:ml_kit_implementation/features/camera.dart';
+import 'package:ml_kit_implementation/features/barcode_scanner_view.dart';
 import 'package:ml_kit_implementation/features/ml_kit_feature.dart';
 
 class BarcodeScannerFeature extends MLKitFeature {
@@ -17,7 +17,7 @@ class BarcodeScannerFeature extends MLKitFeature {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => CameraView(),
+        builder: (context) => BarcodeScannerView(),
       ),
     );
   }
