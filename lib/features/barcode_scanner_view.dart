@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 import 'package:ml_kit_implementation/enums.dart';
 import 'package:ml_kit_implementation/features/camera.dart';
-import 'package:ml_kit_implementation/features/camera_view.dart';
 import 'package:ml_kit_implementation/features/painters/barcode_detector_painter.dart';
 
 bool _modalNotBuilt = true;
@@ -27,7 +26,6 @@ class _BarcodeScannerViewState extends State<BarcodeScannerView> {
 
   CustomPaint? _customPaint;
   var _cameraLensDirection = CameraLensDirection.back;
-  late CameraController _cameraController;
 
   @override
   Widget build(BuildContext context) {
@@ -40,7 +38,7 @@ class _BarcodeScannerViewState extends State<BarcodeScannerView> {
           isPaused: _isPaused,
         ),
         _isPaused
-            ? _retakeButton(_cameraController)
+            ? _retakeButton()
             : const Placeholder(
                 color: Colors.transparent,
               ),
@@ -48,7 +46,7 @@ class _BarcodeScannerViewState extends State<BarcodeScannerView> {
     );
   }
 
-  Widget _retakeButton(CameraController controller) {
+  Widget _retakeButton() {
     return Positioned(
       top: 120.0,
       right: 20.0,
@@ -78,10 +76,7 @@ class _BarcodeScannerViewState extends State<BarcodeScannerView> {
     });
   }
 
-  Future<void> _processBarcodeImage(
-      InputImage inputImage, CameraController controller) async {
-    _cameraController = controller;
-
+  Future<void> _processBarcodeImage(InputImage inputImage) async {
     if (_isBusy) return;
     _isBusy = true;
 

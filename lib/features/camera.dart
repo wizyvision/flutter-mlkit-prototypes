@@ -7,7 +7,7 @@ import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart
 
 class CameraView extends StatefulWidget {
   final List<CameraDescription> cameras;
-  final Function(InputImage inputImage, CameraController controller) onImage;
+  final Function(InputImage inputImage) onImage;
   final CustomPaint? customPaint;
   final CameraLensDirection? initialCameraLensDirection;
   final bool isPaused;
@@ -260,7 +260,7 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
 
     final inputImage = _inputImageFromCamera(image);
     if (inputImage == null) return;
-    widget.onImage(inputImage, _cameraController);
+    widget.onImage(inputImage);
   }
 
   Uint8List _cameraImageToBytes(CameraImage image) {
