@@ -7,14 +7,18 @@ import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart
 
 class CameraView extends StatefulWidget {
   final List<CameraDescription> cameras;
-  final Function(InputImage inputImage) onImage;
+  final Function(InputImage inputImage, CameraController controller) onImage;
   final CustomPaint? customPaint;
+  final CameraLensDirection? initialCameraLensDirection;
+  final bool isPaused;
 
   const CameraView({
     super.key,
     required this.onImage,
     this.customPaint,
     required this.cameras,
+    this.initialCameraLensDirection = CameraLensDirection.back,
+    required this.isPaused,
   });
 
   @override
@@ -23,28 +27,28 @@ class CameraView extends StatefulWidget {
 
 class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   // List<CameraDescription> cameras = [];
-  late CameraController? _cameraController;
+  late CameraController _cameraController;
+  bool _isPaused = false;
 
-  _CameraViewState();
+  //_CameraViewState();
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    if (_cameraController == null ||
-        _cameraController?.value.isInitialized == false) {
+    if (_cameraController.value.isInitialized == false) {
       return;
     }
     if (state == AppLifecycleState.inactive) {
-      _cameraController?.dispose();
+      _cameraController.dispose();
     } else if (state == AppLifecycleState.resumed) {
-      _setupCameraController(widget.cameras.first);
+      _setupCameraController(widget.cameras[0]);
     }
   }
 
   @override
   void initState() {
     super.initState();
-    _setupCameraController(widget.cameras.first);
+    _setupCameraController(widget.cameras[0]);
   }
 
   @override
@@ -57,8 +61,7 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   }
 
   Widget _buildUI(double screenHeight, double screenWidth) {
-    if (_cameraController == null ||
-        _cameraController?.value.isInitialized == false) {
+    if (_cameraController.value.isInitialized == false) {
       return const Center(
         child: CircularProgressIndicator(),
       );
@@ -106,12 +109,21 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
 
           // Middle section for Camera Preview
           Expanded(
-            child: AspectRatio(
-              aspectRatio: screenWidth / (screenHeight * 0.6),
-              child: CameraPreview(
-                _cameraController!,
-                child: widget.customPaint,
-              ),
+            child: Stack(
+              children: [
+                AspectRatio(
+                  aspectRatio: screenWidth / (screenHeight * 0.6),
+                  child: CameraPreview(
+                    _cameraController,
+                    child: widget.customPaint,
+                  ),
+                ),
+                // _isPaused
+                //     ? _retakeButton()
+                //     : const Placeholder(
+                //         color: Colors.transparent,
+                //       ),
+              ],
             ),
           ),
 
@@ -164,10 +176,34 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
     );
   }
 
+  // Widget _retakeButton() {
+  //   return Positioned(
+  //     top: 15.0,
+  //     right: 20.0,
+  //     child: SizedBox(
+  //       height: 60.0,
+  //       width: 40.0,
+  //       child: FloatingActionButton(
+  //         heroTag: Object(),
+  //         backgroundColor: Colors.white,
+  //         foregroundColor: Colors.black,
+  //         shape: const CircleBorder(),
+  //         onPressed: () {
+  //           // setState(() {
+  //           //   _controlPreview(false);
+  //           // });
+  //         },
+  //         child: const Icon(Icons.refresh_outlined),
+  //       ),
+  //     ),
+  //   );
+  // }
+
   Future<void> _setupCameraController(
       CameraDescription cameraDescription) async {
-    // List<CameraDescription> _cameras = await availableCameras();
     // with if statement, widget camera is only initiatlized once and imageStream / inputimagefromcamera only happens once
+
+    // List<CameraDescription> _cameras = await availableCameras();
     // if (widget.cameras.isNotEmpty) {
     //   setState(() {
     //     final _cameras = widget.cameras;
@@ -195,10 +231,10 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
     );
 
     try {
-      await _cameraController!.initialize().then((_) {
+      await _cameraController.initialize().then((_) {
         if (!mounted) return;
 
-        _cameraController!.startImageStream(_processCameraImage);
+        _cameraController.startImageStream(_processCameraImage);
         setState(() {});
       });
     } on CameraException catch (e) {
@@ -207,9 +243,14 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   }
 
   _processCameraImage(CameraImage image) {
+    if (widget.isPaused) {
+      //_cameraController.pausePreview();
+      return;
+    }
+
     final inputImage = _inputImageFromCamera(image);
     if (inputImage == null) return;
-    widget.onImage(inputImage);
+    widget.onImage(inputImage, _cameraController);
   }
 
   Uint8List _cameraImageToBytes(CameraImage image) {
@@ -234,16 +275,27 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
 
     int newWidth = image.planes[0].bytesPerRow;
 
-    if (_cameraController == null) return null;
+    //if (_cameraController == null) return null;
 
     return InputImage.fromBytes(
       bytes: bytes,
       metadata: InputImageMetadata(
-        size: Size(image.width.toDouble(), image.height.toDouble()),
+        size: Size(newWidth.toDouble(), image.height.toDouble()),
         rotation: imageRotation,
         format: inputImageFormat,
         bytesPerRow: image.planes.length,
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _stopLiveFeed();
+    super.dispose();
+  }
+
+  Future<void> _stopLiveFeed() async {
+    await _cameraController.stopImageStream();
+    await _cameraController.dispose();
   }
 }

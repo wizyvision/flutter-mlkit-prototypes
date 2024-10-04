@@ -21,51 +21,115 @@ class _BarcodeScannerViewState extends State<BarcodeScannerView> {
   final BarcodeScanner _barcodeScanner = BarcodeScanner();
 
   bool _isBusy = false;
+  bool _isPainted = false;
+  bool _isPaused = false;
+  late List<Barcode>? _barcodeList;
 
   CustomPaint? _customPaint;
   var _cameraLensDirection = CameraLensDirection.back;
-  var _cameraController;
+  late CameraController _cameraController;
 
   @override
   Widget build(BuildContext context) {
-    return CameraView(
-      onImage: _processBarcodeImage,
-      cameras: widget.cameras,
-      customPaint: _customPaint,
+    return Stack(
+      children: [
+        CameraView(
+          onImage: _processBarcodeImage,
+          cameras: widget.cameras,
+          customPaint: _customPaint,
+          isPaused: _isPaused,
+        ),
+        _isPaused
+            ? _retakeButton(_cameraController)
+            : const Placeholder(
+                color: Colors.transparent,
+              ),
+      ],
     );
   }
 
-  Future<void> _processBarcodeImage(InputImage inputImage) async {
-    // if (_isBusy || _isProcessed) return;
+  Widget _retakeButton(CameraController controller) {
+    return Positioned(
+      top: 120.0,
+      right: 20.0,
+      child: SizedBox(
+        height: 60.0,
+        width: 40.0,
+        child: FloatingActionButton(
+          heroTag: Object(),
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+          shape: const CircleBorder(),
+          onPressed: () {
+            _resumePreview();
+          },
+          child: const Icon(Icons.refresh_outlined),
+        ),
+      ),
+    );
+  }
+
+  void _resumePreview() {
+    setState(() {
+      _barcodeList = null;
+      _isPaused = false;
+    });
+    _cameraController.resumePreview();
+  }
+
+  Future<void> _processBarcodeImage(
+      InputImage inputImage, CameraController controller) async {
+    _cameraController = controller;
+
     if (_isBusy) return;
     _isBusy = true;
 
     final barcodes = await _barcodeScanner.processImage(inputImage);
     if (inputImage.metadata?.size != null &&
         inputImage.metadata?.rotation != null) {
+      if (mounted) {
+        setState(() {
+          _barcodeList = barcodes;
+        });
+      }
+
       final painter = BarcodeDetectorPainter(
-        barcodes,
+        _barcodeList!,
         inputImage.metadata!.size,
         inputImage.metadata!.rotation,
         _cameraLensDirection,
       );
+
       _customPaint = CustomPaint(painter: painter);
-    }
-    if (barcodes.isNotEmpty) {
+
+      //isPainted = true;
       _isProcessed = true;
+    }
+    if (_barcodeList!.isNotEmpty && !_customPaint!.willChange && _isProcessed) {
+      if (mounted) {
+        setState(() {
+          _isPaused = true;
+        });
+        _cameraController.pausePreview();
+        showModalBottomSheet(
+          isDismissible: true,
+          context: context,
+          builder: (context) => ModalPopup(text: _barcodeList!),
+        );
+      }
     }
 
     _isBusy = false;
-    if (mounted && _isProcessed) {
-      // showModalBottomSheet(
-      //   isDismissible: false,
-      //   context: context,
-      //   builder: (context) => ModalPopup(text: barcodes),
-      // );
-      setState(() {});
-    } else if (mounted) {
-      setState(() {});
-    }
+    // if (mounted && _isProcessed) {
+    //   // showModalBottomSheet(
+    //   //   isDismissible: false,
+    //   //   context: context,
+    //   //   builder: (context) => ModalPopup(text: barcodes),
+    //   // );
+    //   setState(() {});
+    // } else if (mounted) {
+    //   setState(() {});
+    // }
   }
 }
 
@@ -82,7 +146,7 @@ class ModalPopup extends StatefulWidget {
 }
 
 class _ModalPopupState extends State<ModalPopup> {
-  int counter = -1;
+  int _counter = -1;
   TextAlign _bgIconAlignment = TextAlign.start;
   // TextDirection _bgIconAlignment = TextDirection.ltr;
 
@@ -90,7 +154,7 @@ class _ModalPopupState extends State<ModalPopup> {
 
   @override
   void initState() {
-    counter = widget.text.length;
+    _counter = widget.text.length;
 
     super.initState();
   }
@@ -173,14 +237,14 @@ class _ModalPopupState extends State<ModalPopup> {
                         color: Colors.grey.shade300,
                         borderRadius: BorderRadius.circular(8.0)),
                     child: ListTile(
-                      title: Text(barcode),
+                      title: Text('${index + 1}: $barcode'),
                       trailing: const Icon(Icons.keyboard_arrow_right_rounded),
                     ),
                   ),
                   onDismissed: (direction) {
                     // counts length of List<Barcode>, deducts 1 every onDismissed until 0
-                    counter--;
-                    if (counter == 0) {
+                    _counter--;
+                    if (_counter == 0) {
                       _returnToCamera();
                     }
                   },

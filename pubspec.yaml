@@ -8,6 +8,7 @@ environment:
 
 dependencies:
   camera: ^0.11.0+2
+  camera_android_camerax: "0.6.7+2"
   cupertino_icons: ^1.0.8
   flutter:
     sdk: flutter

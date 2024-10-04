@@ -26,21 +26,23 @@ class BarcodeDetectorPainter extends CustomPainter {
     final Paint paint = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = 3.0
-      ..color = Colors.lightGreenAccent;
+      ..color = Colors.transparent;
 
     final Paint background = Paint()..color = Color(0x99000000);
 
-    for (final Barcode barcode in barcodes) {
+    for (int x = 0; x < barcodes.length; x++) {
       final ParagraphBuilder builder = ParagraphBuilder(
         ParagraphStyle(
-            textAlign: TextAlign.left,
+            textAlign: TextAlign.center,
             fontSize: 16,
-            textDirection: TextDirection.ltr),
+            textDirection: TextDirection.rtl),
       );
       builder.pushStyle(
           ui.TextStyle(color: Colors.lightGreenAccent, background: background));
-      builder.addText('${barcode.displayValue}');
+      builder.addText('${x + 1}');
       builder.pop();
+
+      Barcode barcode = barcodes[x];
 
       final left = translateX(
         barcode.boundingBox.left,
