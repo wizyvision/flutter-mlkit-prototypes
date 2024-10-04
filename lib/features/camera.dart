@@ -189,29 +189,6 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
     );
   }
 
-  // Widget _retakeButton() {
-  //   return Positioned(
-  //     top: 15.0,
-  //     right: 20.0,
-  //     child: SizedBox(
-  //       height: 60.0,
-  //       width: 40.0,
-  //       child: FloatingActionButton(
-  //         heroTag: Object(),
-  //         backgroundColor: Colors.white,
-  //         foregroundColor: Colors.black,
-  //         shape: const CircleBorder(),
-  //         onPressed: () {
-  //           // setState(() {
-  //           //   _controlPreview(false);
-  //           // });
-  //         },
-  //         child: const Icon(Icons.refresh_outlined),
-  //       ),
-  //     ),
-  //   );
-  // }
-
   Future<void> _setupCameraController(
       CameraDescription cameraDescription) async {
     // with if statement, widget camera is only initiatlized once and imageStream / inputimagefromcamera only happens once
