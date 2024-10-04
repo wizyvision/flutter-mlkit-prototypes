@@ -6,7 +6,7 @@ import 'package:ml_kit_implementation/features/camera.dart';
 import 'package:ml_kit_implementation/features/camera_view.dart';
 import 'package:ml_kit_implementation/features/painters/barcode_detector_painter.dart';
 
-bool _isProcessed = false;
+bool _modalNotBuilt = true;
 
 class BarcodeScannerView extends StatefulWidget {
   final List<CameraDescription> cameras;
@@ -73,8 +73,9 @@ class _BarcodeScannerViewState extends State<BarcodeScannerView> {
     setState(() {
       _barcodeList = null;
       _isPaused = false;
+      _isPainted = false;
+      _modalNotBuilt = true;
     });
-    _cameraController.resumePreview();
   }
 
   Future<void> _processBarcodeImage(
@@ -102,15 +103,14 @@ class _BarcodeScannerViewState extends State<BarcodeScannerView> {
 
       _customPaint = CustomPaint(painter: painter);
 
-      //isPainted = true;
-      _isProcessed = true;
+      _isPainted = true;
     }
-    if (_barcodeList!.isNotEmpty && !_customPaint!.willChange && _isProcessed) {
-      if (mounted) {
+    if (_barcodeList!.isNotEmpty && _isPainted) {
+      if (mounted && _modalNotBuilt) {
         setState(() {
           _isPaused = true;
         });
-        _cameraController.pausePreview();
+
         showModalBottomSheet(
           isDismissible: true,
           context: context,
@@ -120,16 +120,6 @@ class _BarcodeScannerViewState extends State<BarcodeScannerView> {
     }
 
     _isBusy = false;
-    // if (mounted && _isProcessed) {
-    //   // showModalBottomSheet(
-    //   //   isDismissible: false,
-    //   //   context: context,
-    //   //   builder: (context) => ModalPopup(text: barcodes),
-    //   // );
-    //   setState(() {});
-    // } else if (mounted) {
-    //   setState(() {});
-    // }
   }
 }
 
@@ -157,13 +147,9 @@ class _ModalPopupState extends State<ModalPopup> {
     _counter = widget.text.length;
 
     super.initState();
-  }
 
-  @override
-  void dispose() {
-    _isProcessed = false;
-
-    super.dispose();
+    // ensures modal only pops up once
+    _modalNotBuilt = false;
   }
 
   void _returnToCamera() {

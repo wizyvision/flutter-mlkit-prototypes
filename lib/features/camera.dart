@@ -52,6 +52,19 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   }
 
   @override
+  void didUpdateWidget(covariant CameraView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (!oldWidget.isPaused && widget.isPaused) {
+      _cameraController.pausePreview();
+      _isPaused = true;
+    } else if (oldWidget.isPaused && !widget.isPaused) {
+      _isPaused = false;
+      _cameraController.resumePreview();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     final double screenHeight = MediaQuery.of(context).size.height;
     final double screenWidth = MediaQuery.of(context).size.width;
@@ -243,10 +256,7 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   }
 
   _processCameraImage(CameraImage image) {
-    if (widget.isPaused) {
-      //_cameraController.pausePreview();
-      return;
-    }
+    if (_isPaused) return;
 
     final inputImage = _inputImageFromCamera(image);
     if (inputImage == null) return;
