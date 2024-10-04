@@ -1,7 +1,9 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:gal/gal.dart';
 import 'package:google_mlkit_document_scanner/google_mlkit_document_scanner.dart';
 import 'package:ml_kit_implementation/features/ml_kit_feature.dart';
 import 'package:ml_kit_implementation/handlers/permissions_helper.dart';
@@ -38,6 +40,11 @@ class _ScannerScreenState extends State<ScannerScreen> {
   @override
   void initState() {
     super.initState();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _requestPermissions();
+    });
+
     final DocumentScannerOptions documentOptions = DocumentScannerOptions(
       documentFormat: DocumentFormat.jpeg,
       mode: ScannerMode.filter,
@@ -45,7 +52,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
       isGalleryImport: true,
     );
     _documentScanner = DocumentScanner(options: documentOptions);
-    _requestPermissions();
   }
 
   Future<void> _requestPermissions() async {
@@ -98,9 +104,7 @@ class _ScannerScreenState extends State<ScannerScreen> {
 
   // Funtion to save image as JPEG to gallery
   Future<void> _saveImageToGallery(String imagePath) async {
-    final imageBytes = File(imagePath).readAsBytesSync();
-    // final result = await ImageGallerySaver.saveImage(imageBytes);
-    // print('Image saved to gallery: $result');
+    await Gal.putImage(imagePath);
   }
 
   // Function to save PDF to files
