@@ -48,7 +48,7 @@ class _BarcodeScannerViewState extends State<BarcodeScannerView> {
 
   Widget _retakeButton() {
     return Positioned(
-      top: 120.0,
+      top: 50.0,
       right: 20.0,
       child: SizedBox(
         height: 60.0,
@@ -108,6 +108,9 @@ class _BarcodeScannerViewState extends State<BarcodeScannerView> {
 
         showModalBottomSheet(
           isDismissible: true,
+          barrierColor: Colors.transparent,
+          constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.5),
           context: context,
           builder: (context) => ModalPopup(text: _barcodeList!),
         );

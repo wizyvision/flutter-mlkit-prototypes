@@ -80,108 +80,111 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
       );
     }
     return SafeArea(
-      child: Column(
+      child: Stack(
         children: [
           // Top section with black background and top icons
-          Container(
-            color: Colors.black,
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            height: screenHeight * 0.1,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  icon: Icon(
-                    Icons.arrow_back,
-                    color: Colors.white,
-                    size: screenWidth * 0.08,
+          Positioned(
+            top: 0.0,
+            left: 0.0,
+            child: Container(
+              color: Colors.black,
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              height: screenHeight * 0.1,
+              width: screenWidth,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.arrow_back,
+                      color: Colors.white,
+                      size: screenWidth * 0.08,
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Go back to previous screen
+                    },
                   ),
-                  onPressed: () {
-                    Navigator.of(context).pop(); // Go back to previous screen
-                  },
-                ),
-                IconButton(
-                  icon: Icon(
-                    // _isFlashOn ? Icons.flash_on : Icons.flash_off,
-                    Icons.flash_on,
-                    color: Colors.white,
-                    size: screenWidth * 0.08,
+                  IconButton(
+                    icon: Icon(
+                      // _isFlashOn ? Icons.flash_on : Icons.flash_off,
+                      Icons.flash_on,
+                      color: Colors.white,
+                      size: screenWidth * 0.08,
+                    ),
+                    onPressed: () async {
+                      // setState(() {
+                      //   _isFlashOn = !_isFlashOn;
+                      // });
+                      // await cameraController?.setFlashMode(
+                      //   _isFlashOn ? FlashMode.torch : FlashMode.off,
+                      // );
+                    },
                   ),
-                  onPressed: () async {
-                    // setState(() {
-                    //   _isFlashOn = !_isFlashOn;
-                    // });
-                    // await cameraController?.setFlashMode(
-                    //   _isFlashOn ? FlashMode.torch : FlashMode.off,
-                    // );
-                  },
-                ),
-              ],
+                ],
+              ),
             ),
           ),
 
           // Middle section for Camera Preview
-          Expanded(
-            child: Stack(
-              children: [
-                AspectRatio(
-                  aspectRatio: screenWidth / (screenHeight * 0.6),
-                  child: CameraPreview(
-                    _cameraController,
-                    child: widget.customPaint,
-                  ),
-                ),
-                // _isPaused
-                //     ? _retakeButton()
-                //     : const Placeholder(
-                //         color: Colors.transparent,
-                //       ),
-              ],
+          AnimatedPositioned(
+            top: _isPaused ? 0.0 : (screenHeight * 0.1),
+            left: 0.0,
+            width: screenWidth,
+            height: screenHeight * 0.6,
+            duration: const Duration(milliseconds: 500),
+            child: CameraPreview(
+              _cameraController,
+              child: widget.customPaint,
             ),
           ),
 
           // Bottom section with black background and bottom icons
-          Container(
-            color: Colors.black,
-            padding: const EdgeInsets.all(16.0),
-            height: screenHeight * 0.25,
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconButton(
-                  onPressed: () async {
-                    // Open gallery or perform another action
-                  },
-                  iconSize: screenWidth * 0.10,
-                  icon: const Icon(
-                    Icons.photo_library,
-                    color: Colors.white,
+          Positioned(
+            left: 0.0,
+            bottom: 0.0,
+            child: Container(
+              color: Colors.black,
+              padding: const EdgeInsets.all(16.0),
+              height: screenHeight * 0.25,
+              width: screenWidth,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    onPressed: () async {
+                      // Open gallery or perform another action
+                    },
+                    iconSize: screenWidth * 0.10,
+                    icon: const Icon(
+                      Icons.photo_library,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-                IconButton(
-                  onPressed: () async {
-                    XFile picture = await _cameraController!.takePicture();
-                    Gal.putImage(
-                      picture.path,
-                    );
-                  },
-                  iconSize: screenWidth * 0.22,
-                  icon: const Icon(
-                    CupertinoIcons.circle_filled,
-                    color: Colors.white,
+                  IconButton(
+                    onPressed: () async {
+                      XFile picture = await _cameraController!.takePicture();
+                      Gal.putImage(
+                        picture.path,
+                      );
+                    },
+                    iconSize: screenWidth * 0.22,
+                    icon: const Icon(
+                      CupertinoIcons.circle_filled,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-                IconButton(
-                  onPressed: () async {
-                    // Handle switching cameras
-                  },
-                  iconSize: screenWidth * 0.10,
-                  icon: const Icon(
-                    CupertinoIcons.arrow_2_circlepath_circle_fill,
-                    color: Colors.white,
+                  IconButton(
+                    onPressed: () async {
+                      // Handle switching cameras
+                    },
+                    iconSize: screenWidth * 0.10,
+                    icon: const Icon(
+                      CupertinoIcons.arrow_2_circlepath_circle_fill,
+                      color: Colors.white,
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
