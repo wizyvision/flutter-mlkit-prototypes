@@ -1,128 +1,237 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:flutter/services.dart';
-import 'package:google_mlkit_object_detection/google_mlkit_object_detection.dart';
+import 'package:google_ml_kit/google_ml_kit.dart'; // Ensure ML Kit dependencies are included
 
 class ObjectTrackingView extends StatefulWidget {
   @override
   _ObjectTrackingViewState createState() => _ObjectTrackingViewState();
 }
 
-class _ObjectTrackingViewState extends State<ObjectTrackingView> {
-  CameraController? cameraController; // Change to nullable type
-  late ObjectDetector objectDetector;
-  bool isDetecting = false; // Track if detection is in progress
-  bool isCameraInitialized = false; // Track if the camera is initialized
+class _ObjectTrackingViewState extends State<ObjectTrackingView>
+    with SingleTickerProviderStateMixin {
+  late CameraController _cameraController;
+  late BarcodeScanner _barcodeScanner;
+  bool _isSensing = false;
+  bool _isCameraInitialized = false; // Track camera initialization
+  String _tooltipMessage = "Point your camera at a barcode";
+
+  // Animation controller for pulsing animation
+  AnimationController? _animationController;
 
   @override
   void initState() {
     super.initState();
     _initializeCamera();
-    _initializeObjectDetector();
-  }
-
-  Future<void> _initializeCamera() async {
-    try {
-      // Initialize the camera and the camera controller
-      final cameras = await availableCameras();
-      cameraController = CameraController(
-        cameras.first,
-        ResolutionPreset.high,
-      );
-
-      await cameraController!.initialize();
-      cameraController!.startImageStream(_processCameraImage);
-      setState(() {
-        isCameraInitialized = true; // Set camera initialization flag
-      });
-    } catch (e) {
-      // Handle camera initialization errors
-      print('Error initializing camera: $e');
-    }
-  }
-
-  void _initializeObjectDetector() {
-    // Specify the path to your model
-    const modelPath =
-        'assets/models/object_detection_model.tflite'; // Change this to your model's path
-
-    // Create options for the object detector
-    final options = LocalObjectDetectorOptions(
-      mode: DetectionMode.stream,
-      modelPath: modelPath,
-      classifyObjects: true,
-      multipleObjects: true,
-      confidenceThreshold: 0.5,
-    );
-
-    // Initialize the object detector
-    objectDetector = ObjectDetector(options: options);
-  }
-
-  void _processCameraImage(CameraImage image) async {
-    if (isDetecting) return; // Prevent multiple detections at once
-    isDetecting = true; // Set detecting flag
-
-    try {
-      // Convert CameraImage to InputImage
-      InputImage inputImage = _convertCameraImage(image);
-
-      // Process the image for object detection
-      final List<DetectedObject> objects =
-          await objectDetector.processImage(inputImage);
-
-      // Handle the detected objects (e.g., update the UI)
-      setState(() {
-        // Update your state with detected objects
-      });
-    } catch (e) {
-      // Handle processing errors
-      print('Error processing image: $e');
-    } finally {
-      isDetecting = false; // Reset detecting flag
-    }
-  }
-
-  InputImage _convertCameraImage(CameraImage image) {
-    final WriteBuffer allBytes = WriteBuffer();
-    for (final Plane plane in image.planes) {
-      allBytes.putUint8List(plane.bytes);
-    }
-    final bytes = allBytes.done().buffer.asUint8List();
-    final size = Size(image.width.toDouble(), image.height.toDouble());
-
-    // Create the InputImageMetadata
-    final metadata = InputImageMetadata(
-      size: size,
-      rotation: InputImageRotation.rotation0deg, // Adjust as needed
-      format: InputImageFormat.yuv_420_888, // Ensure the correct format
-      bytesPerRow: image.planes[0].bytesPerRow,
-    );
-
-    // Create the InputImage from bytes and metadata
-    return InputImage.fromBytes(
-      bytes: bytes,
-      metadata: metadata,
-    );
+    _barcodeScanner = GoogleMlKit.vision.barcodeScanner();
+    _animationController = AnimationController(
+      duration: const Duration(seconds: 1),
+      vsync: this,
+    )..repeat(reverse: true);
   }
 
   @override
   void dispose() {
-    cameraController
-        ?.dispose(); // Ensure to dispose of the controller if initialized
-    objectDetector.close(); // Ensure to close the detector
+    _cameraController.dispose();
+    _barcodeScanner.close();
+    _animationController?.dispose();
     super.dispose();
+  }
+
+  Future<void> _initializeCamera() async {
+    final cameras = await availableCameras();
+    final camera = cameras.first;
+    _cameraController = CameraController(camera, ResolutionPreset.high);
+    await _cameraController.initialize();
+
+    if (mounted) {
+      setState(() {
+        _isCameraInitialized =
+            true; // Set to true once the camera is initialized
+      });
+    }
+
+    _cameraController.startImageStream((CameraImage image) {
+      final inputImage = _inputImageFromCameraImage(image);
+      if (inputImage != null) {
+        _processImage(inputImage);
+      }
+    });
+  }
+
+  Future<void> _processImage(InputImage inputImage) async {
+    final barcodes = await _barcodeScanner.processImage(inputImage);
+    if (barcodes.isNotEmpty) {
+      _showBarcodeResults(barcodes.first.rawValue ?? '');
+    } else {
+      setState(() {
+        _tooltipMessage = 'Move closer to the barcode';
+        _isSensing = false;
+      });
+    }
+  }
+
+  InputImage? _inputImageFromCameraImage(CameraImage image) {
+    final sensorOrientation = _cameraController.description.sensorOrientation;
+    InputImageRotation? rotation;
+
+    if (Platform.isIOS) {
+      rotation = InputImageRotationValue.fromRawValue(sensorOrientation);
+    } else if (Platform.isAndroid) {
+      var rotationCompensation =
+          _cameraController.value.deviceOrientation.index * 90;
+      if (_cameraController.description.lensDirection ==
+          CameraLensDirection.front) {
+        rotationCompensation = (sensorOrientation + rotationCompensation) % 360;
+      } else {
+        rotationCompensation =
+            (sensorOrientation - rotationCompensation + 360) % 360;
+      }
+      rotation = InputImageRotationValue.fromRawValue(rotationCompensation);
+    }
+
+    if (rotation == null) return null;
+
+    final format = InputImageFormatValue.fromRawValue(image.format.raw);
+    if (format == null ||
+        (Platform.isAndroid && format != InputImageFormat.nv21) ||
+        (Platform.isIOS && format != InputImageFormat.bgra8888)) return null;
+
+    if (image.planes.length != 1) return null;
+    final plane = image.planes.first;
+
+    return InputImage.fromBytes(
+      bytes: plane.bytes,
+      metadata: InputImageMetadata(
+        size: Size(image.width.toDouble(), image.height.toDouble()),
+        rotation: rotation,
+        format: format,
+        bytesPerRow: plane.bytesPerRow,
+      ),
+    );
+  }
+
+  void _showBarcodeResults(String data) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return Container(
+          height: 200,
+          child: Column(
+            children: [
+              Text('Barcode Data:'),
+              Text(data),
+              // You can add more fields to display barcode data here.
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _toggleFlash() {
+    if (_cameraController.value.flashMode == FlashMode.off) {
+      _cameraController.setFlashMode(FlashMode.torch);
+    } else {
+      _cameraController.setFlashMode(FlashMode.off);
+    }
+  }
+
+  void _openHelp() {
+    // Handle opening help section
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Center(
-        child:
-            isCameraInitialized // Use the initialization flag to check the camera state
-                ? CameraPreview(
-                    cameraController!) // Use the nullable cameraController safely
-                : CircularProgressIndicator(),
+      appBar: AppBar(
+        title: Text('Barcode Scanner'),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.flash_on), // Flash toggle
+            onPressed: _toggleFlash,
+          ),
+          IconButton(
+            icon: Icon(Icons.help_outline), // Help
+            onPressed: _openHelp,
+          ),
+        ],
+        leading: IconButton(
+          icon: Icon(Icons.close), // Exit
+          onPressed: () => Navigator.pop(context),
+        ),
+      ),
+      body:
+          _isCameraInitialized // Ensure camera is initialized before rendering
+              ? Stack(
+                  children: [
+                    CameraPreview(_cameraController),
+                    // Central barcode scanning area
+                    Align(
+                      alignment: Alignment.center,
+                      child: Container(
+                        width: 250,
+                        height: 150,
+                        decoration: BoxDecoration(
+                          color: Colors.grey.withOpacity(0.3),
+                          border: Border.all(color: Colors.white, width: 2.0),
+                        ),
+                        child: _isSensing
+                            ? PulsingAnimation(_animationController!)
+                            : Container(),
+                      ),
+                    ),
+                    // Top and Bottom opacity overlay
+                    Align(
+                      alignment: Alignment.topCenter,
+                      child: Container(
+                        height: 100, // Adjust the height for top opacity
+                        color: Colors.black.withOpacity(0.5),
+                      ),
+                    ),
+                    Align(
+                      alignment: Alignment.bottomCenter,
+                      child: Container(
+                        height: 100, // Adjust the height for bottom opacity
+                        color: Colors.black.withOpacity(0.5),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Tooltip(
+                            message: _tooltipMessage,
+                            child: Text(
+                              _tooltipMessage,
+                              style: TextStyle(color: Colors.white),
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                )
+              : Center(
+                  child:
+                      CircularProgressIndicator()), // Show loading until camera is initialized
+    );
+  }
+}
+
+class PulsingAnimation extends StatelessWidget {
+  final AnimationController controller;
+
+  PulsingAnimation(this.controller);
+
+  @override
+  Widget build(BuildContext context) {
+    return ScaleTransition(
+      scale: Tween(begin: 0.8, end: 1.2).animate(CurvedAnimation(
+        parent: controller,
+        curve: Curves.easeInOut,
+      )),
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border.all(color: Colors.greenAccent, width: 2.0),
+        ),
       ),
     );
   }

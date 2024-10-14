@@ -7,7 +7,7 @@ import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart
 
 class CameraView extends StatefulWidget {
   final List<CameraDescription> cameras;
-  final Function(InputImage inputImage, CameraController controller) onImage;
+  final Function(InputImage inputImage) onImage;
   final CustomPaint? customPaint;
   final CameraLensDirection? initialCameraLensDirection;
   final bool isPaused;
@@ -26,8 +26,11 @@ class CameraView extends StatefulWidget {
 }
 
 class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
+  // List<CameraDescription> cameras = [];
   late CameraController _cameraController;
   bool _isPaused = false;
+
+  //_CameraViewState();
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
@@ -49,137 +52,139 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   }
 
   @override
+  void didUpdateWidget(covariant CameraView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (!oldWidget.isPaused && widget.isPaused) {
+      _cameraController.pausePreview();
+      _isPaused = true;
+    } else if (oldWidget.isPaused && !widget.isPaused) {
+      _isPaused = false;
+      _cameraController.resumePreview();
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final double screenHeight = MediaQuery.of(context).size.height;
+    final double screenWidth = MediaQuery.of(context).size.width;
     return Scaffold(
-      body: _buildUI(context),
+      body: _buildUI(screenHeight, screenWidth),
     );
   }
 
-  Widget _buildUI(BuildContext context) {
-    if (!_cameraController.value.isInitialized) {
+  Widget _buildUI(double screenHeight, double screenWidth) {
+    if (_cameraController.value.isInitialized == false) {
       return const Center(
         child: CircularProgressIndicator(),
       );
     }
-
     return SafeArea(
-      child: LayoutBuilder(
-        builder: (BuildContext context, BoxConstraints constraints) {
-          final double screenHeight = constraints.maxHeight;
-          final double screenWidth = constraints.maxWidth;
-
-          return Column(
-            children: [
-              // Top section with black background and top icons
-              _buildTopControls(screenWidth),
-
-              // Middle section for Camera Preview (with maintained aspect ratio)
-              _buildCameraPreview(screenWidth, screenHeight),
-
-              // Bottom section with black background and bottom icons
-              _buildBottomControls(screenWidth),
-            ],
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildTopControls(double screenWidth) {
-    return Container(
-      color: Colors.black,
-      padding: EdgeInsets.symmetric(
-          horizontal: screenWidth * 0.04), // Responsive padding
-      height: screenWidth * 0.2, // Adjust height based on screen width
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Stack(
         children: [
-          IconButton(
-            icon: Icon(
-              Icons.arrow_back,
-              color: Colors.white,
-              size: screenWidth * 0.08, // Responsive icon size
-            ),
-            onPressed: () {
-              Navigator.of(context).pop(); // Go back to the previous screen
-            },
-          ),
-          IconButton(
-            icon: Icon(
-              Icons.flash_on, // Add flash toggle logic here
-              color: Colors.white,
-              size: screenWidth * 0.08,
-            ),
-            onPressed: () {
-              // Handle flash toggle
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildCameraPreview(double screenWidth, double screenHeight) {
-    return Expanded(
-      child: Container(
-        color: Colors.black,
-        child: FittedBox(
-          fit: BoxFit
-              .cover, // Ensures that the preview covers the space without distorting the aspect ratio
-          child: SizedBox(
-            width: screenWidth,
-            height: screenHeight * 0.65, // Adjust the height to fill more space
-            child: AspectRatio(
-              aspectRatio: _cameraController
-                  .value.aspectRatio, // Maintain camera aspect ratio
-              child: CameraPreview(
-                _cameraController,
-                child: widget.customPaint, // Overlay for custom painting
+          // Top section with black background and top icons
+          Positioned(
+            top: 0.0,
+            left: 0.0,
+            child: Container(
+              color: Colors.black,
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              height: screenHeight * 0.1,
+              width: screenWidth,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.arrow_back,
+                      color: Colors.white,
+                      size: screenWidth * 0.08,
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Go back to previous screen
+                    },
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      // _isFlashOn ? Icons.flash_on : Icons.flash_off,
+                      Icons.flash_on,
+                      color: Colors.white,
+                      size: screenWidth * 0.08,
+                    ),
+                    onPressed: () async {
+                      // setState(() {
+                      //   _isFlashOn = !_isFlashOn;
+                      // });
+                      // await cameraController?.setFlashMode(
+                      //   _isFlashOn ? FlashMode.torch : FlashMode.off,
+                      // );
+                    },
+                  ),
+                ],
               ),
             ),
           ),
-        ),
-      ),
-    );
-  }
 
-  Widget _buildBottomControls(double screenWidth) {
-    return Container(
-      color: Colors.black,
-      padding: EdgeInsets.all(screenWidth * 0.04), // Responsive padding
-      height: screenWidth * 0.45, // Adjust height based on screen width
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          IconButton(
-            onPressed: () async {
-              // Open gallery or perform another action
-            },
-            iconSize: screenWidth * 0.1, // Adjust icon size dynamically
-            icon: const Icon(
-              Icons.photo_library,
-              color: Colors.white,
+          // Middle section for Camera Preview
+          AnimatedPositioned(
+            top: _isPaused ? 0.0 : (screenHeight * 0.1),
+            left: 0.0,
+            width: screenWidth,
+            height: screenHeight * 0.6,
+            duration: const Duration(milliseconds: 500),
+            child: CameraPreview(
+              _cameraController,
+              child: widget.customPaint,
             ),
           ),
-          IconButton(
-            onPressed: () async {
-              XFile picture = await _cameraController.takePicture();
-              Gal.putImage(picture.path);
-            },
-            iconSize: screenWidth * 0.22, // Larger size for capture button
-            icon: const Icon(
-              CupertinoIcons.circle_filled,
-              color: Colors.white,
-            ),
-          ),
-          IconButton(
-            onPressed: () {
-              // Handle switching cameras
-            },
-            iconSize: screenWidth * 0.1, // Adjust icon size dynamically
-            icon: const Icon(
-              CupertinoIcons.arrow_2_circlepath_circle_fill,
-              color: Colors.white,
+
+          // Bottom section with black background and bottom icons
+          Positioned(
+            left: 0.0,
+            bottom: 0.0,
+            child: Container(
+              color: Colors.black,
+              padding: const EdgeInsets.all(16.0),
+              height: screenHeight * 0.25,
+              width: screenWidth,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    onPressed: () async {
+                      // Open gallery or perform another action
+                    },
+                    iconSize: screenWidth * 0.10,
+                    icon: const Icon(
+                      Icons.photo_library,
+                      color: Colors.white,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () async {
+                      XFile picture = await _cameraController!.takePicture();
+                      Gal.putImage(
+                        picture.path,
+                      );
+                    },
+                    iconSize: screenWidth * 0.22,
+                    icon: const Icon(
+                      CupertinoIcons.circle_filled,
+                      color: Colors.white,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () async {
+                      // Handle switching cameras
+                    },
+                    iconSize: screenWidth * 0.10,
+                    icon: const Icon(
+                      CupertinoIcons.arrow_2_circlepath_circle_fill,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -189,6 +194,30 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
 
   Future<void> _setupCameraController(
       CameraDescription cameraDescription) async {
+    // with if statement, widget camera is only initiatlized once and imageStream / inputimagefromcamera only happens once
+
+    // List<CameraDescription> _cameras = await availableCameras();
+    // if (widget.cameras.isNotEmpty) {
+    //   setState(() {
+    //     final _cameras = widget.cameras;
+    //     _cameraController = CameraController(
+    //       _cameras.first,
+    //       ResolutionPreset.max,
+    //     );
+    //   });
+    //   _cameraController?.initialize().then((_) {
+    //     if (!mounted) {
+    //       return;
+    //     }
+    //     _cameraController!.startImageStream(_inputImageFromCamera);
+    //     setState(() {});
+    //   }).catchError(
+    //     (Object e) {
+    //       print(e);
+    //     },
+    //   );
+    // }
+
     _cameraController = CameraController(
       cameraDescription,
       ResolutionPreset.high,
@@ -197,6 +226,7 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
     try {
       await _cameraController.initialize().then((_) {
         if (!mounted) return;
+
         _cameraController.startImageStream(_processCameraImage);
         setState(() {});
       });
@@ -206,13 +236,11 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
   }
 
   _processCameraImage(CameraImage image) {
-    if (widget.isPaused) {
-      return;
-    }
+    if (_isPaused) return;
 
     final inputImage = _inputImageFromCamera(image);
     if (inputImage == null) return;
-    widget.onImage(inputImage, _cameraController);
+    widget.onImage(inputImage);
   }
 
   Uint8List _cameraImageToBytes(CameraImage image) {
@@ -236,6 +264,8 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
             InputImageFormat.nv21;
 
     int newWidth = image.planes[0].bytesPerRow;
+
+    //if (_cameraController == null) return null;
 
     return InputImage.fromBytes(
       bytes: bytes,

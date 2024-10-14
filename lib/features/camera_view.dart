@@ -127,6 +127,15 @@ class _CameraStreamViewState extends State<CameraStreamView> {
     widget.onImage(inputImage);
   }
 
+  // Uint8List _cameraImageToBytes(CameraImage image) {
+  //   final WriteBuffer allBytes = WriteBuffer();
+  //   for (Plane plane in image.planes) {
+  //     allBytes.putUint8List(plane.bytes);
+  //   }
+  //   final bytes = allBytes.done().buffer.asUint8List();
+  //   return bytes;
+  // }
+
   InputImage? _inputImageFromCamera(CameraImage image) {
     // Uint8List _cameraImageToBytes(CameraImage image)
     // final WriteBuffer allBytes = WriteBuffer();

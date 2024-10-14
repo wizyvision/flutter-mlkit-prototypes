@@ -1,18 +1,38 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:ml_kit_implementation/cards/barcode_scanner.dart';
+import 'package:ml_kit_implementation/cards/barcode_single.dart';
 import 'package:ml_kit_implementation/cards/document_scanner.dart';
 import 'package:ml_kit_implementation/cards/object_tracking.dart';
+import 'package:ml_kit_implementation/features/camera_controller_notifier.dart';
+import 'package:ml_kit_implementation/features/cameranew.dart';
 import 'package:ml_kit_implementation/features/ml_kit_feature.dart';
 import 'package:ml_kit_implementation/widgets/feature_list_item.dart';
+import 'package:provider/provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MyApp());
+
+  // Fetch available cameras
+  final List<CameraDescription> cameras = await availableCameras();
+
+  runApp(
+    MultiProvider(
+      providers: [
+        ChangeNotifierProvider(
+          create: (_) =>
+              CameraControllerNotifier(), // Provide your CameraControllerNotifier
+        ),
+      ],
+      child: MyApp(cameras: cameras),
+    ),
+  );
 }
 
 class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+  final List<CameraDescription> cameras;
+
+  const MyApp({super.key, required this.cameras});
 
   @override
   Widget build(BuildContext context) {
@@ -22,14 +42,16 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
         visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
-      home: const MyHomePage(),
+      home: MyHomePage(cameras: cameras),
       debugShowCheckedModeBanner: false,
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key});
+  final List<CameraDescription> cameras;
+
+  const MyHomePage({super.key, required this.cameras});
 
   @override
   State<MyHomePage> createState() => _MyHomePageState();
@@ -39,12 +61,11 @@ class _MyHomePageState extends State<MyHomePage> {
   List<MLKitFeature> filteredFeatures = [];
   String searchQuery = '';
   String sortBy = 'Name';
-  List<CameraDescription> cameras = [];
-  CameraController? cameraController;
 
   final List<MLKitFeature> features = [
     DocumentScannerFeature(),
     BarcodeScannerFeature(),
+    BarcodeSingleFeature(),
     ObjectTrackingFeature(),
     // Add more features here...
   ];
@@ -87,7 +108,7 @@ class _MyHomePageState extends State<MyHomePage> {
         children: [
           SizedBox(height: screenHeight * 0.05), // Adaptive top padding
 
-          // Title Section
+          // Title Section with Camera Icon
           Container(
             width: screenWidth * 0.9, // Adaptive width
             child: AppBar(
@@ -99,6 +120,26 @@ class _MyHomePageState extends State<MyHomePage> {
                   fontSize: 24, // Adaptive font size
                 ),
               ),
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.camera_alt, color: Colors.black),
+                  onPressed: () {
+                    // Navigate to CameraNewView when the icon is pressed
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => CameraNewView(
+                          cameras: widget.cameras,
+                          onImage: (inputImage, controller) {
+                            // Handle what happens with the image here
+                          },
+                          isPaused: false, // Adjust as needed
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
           ),
 

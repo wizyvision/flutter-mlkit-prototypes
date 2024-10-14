@@ -1,6 +1,11 @@
+import 'dart:io';
+import 'dart:ui';
+import 'dart:ui' as ui;
+
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
+
 import 'coordinates_translator.dart';
 
 class BarcodeDetectorPainter extends CustomPainter {
@@ -9,25 +14,33 @@ class BarcodeDetectorPainter extends CustomPainter {
     this.imageSize,
     this.rotation,
     this.cameraLensDirection,
-    this.selectedBarcodeIndex,
-    this.onTap, // Change the type to accept an int
   );
 
   final List<Barcode> barcodes;
   final Size imageSize;
   final InputImageRotation rotation;
   final CameraLensDirection cameraLensDirection;
-  final int? selectedBarcodeIndex;
-  final Function(int) onTap; // Change to accept int index
 
   @override
   void paint(Canvas canvas, Size size) {
-    final Paint paint = Paint()..style = PaintingStyle.stroke;
+    final Paint paint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 3.0
+      ..color = Colors.transparent;
+
+    final Paint background = Paint()..color = Color(0x99000000);
 
     for (int x = 0; x < barcodes.length; x++) {
-      // Set the color of the box (green if selected, otherwise yellow)
-      paint.color = x == selectedBarcodeIndex ? Colors.green : Colors.yellow;
-      paint.strokeWidth = x == selectedBarcodeIndex ? 6.0 : 3.0;
+      final ParagraphBuilder builder = ParagraphBuilder(
+        ParagraphStyle(
+            textAlign: TextAlign.center,
+            fontSize: 16,
+            textDirection: TextDirection.rtl),
+      );
+      builder.pushStyle(
+          ui.TextStyle(color: Colors.lightGreenAccent, background: background));
+      builder.addText('${x + 1}');
+      builder.pop();
 
       Barcode barcode = barcodes[x];
 
@@ -52,32 +65,55 @@ class BarcodeDetectorPainter extends CustomPainter {
         rotation,
         cameraLensDirection,
       );
-      final bottom = translateY(
-        barcode.boundingBox.bottom,
-        size,
-        imageSize,
-        rotation,
-        cameraLensDirection,
-      );
+      // final bottom = translateY(
+      //   barcode.boundingBox.bottom,
+      //   size,
+      //   imageSize,
+      //   rotation,
+      //   cameraLensDirection,
+      // );
+      //
+      // // Draw a bounding rectangle around the barcode
+      // canvas.drawRect(
+      //   Rect.fromLTRB(left, top, right, bottom),
+      //   paint,
+      // );
 
-      // Draw the bounding box of the barcode
-      canvas.drawRect(
-        Rect.fromLTRB(left, top, right, bottom),
-        paint,
-      );
+      final List<Offset> cornerPoints = <Offset>[];
+      for (final point in barcode.cornerPoints) {
+        final double x = translateX(
+          point.x.toDouble(),
+          size,
+          imageSize,
+          rotation,
+          cameraLensDirection,
+        );
+        final double y = translateY(
+          point.y.toDouble(),
+          size,
+          imageSize,
+          rotation,
+          cameraLensDirection,
+        );
 
-      // Draw the barcode text above the bounding box if available
-      final textPainter = TextPainter(
-        text: TextSpan(
-          text: barcode.displayValue ?? 'Unknown',
-          style: const TextStyle(color: Colors.lightGreenAccent, fontSize: 16),
-        ),
-        textDirection: TextDirection.ltr,
-      );
-      textPainter.layout();
-      textPainter.paint(
-        canvas,
-        Offset(left, top - 20), // Position the text above the bounding box
+        cornerPoints.add(Offset(x, y));
+      }
+
+      // Add the first point to close the polygon
+      cornerPoints.add(cornerPoints.first);
+      canvas.drawPoints(PointMode.polygon, cornerPoints, paint);
+
+      canvas.drawParagraph(
+        builder.build()
+          ..layout(ParagraphConstraints(
+            width: (right - left).abs(),
+          )),
+        Offset(
+            Platform.isAndroid &&
+                    cameraLensDirection == CameraLensDirection.front
+                ? right
+                : left,
+            top),
       );
     }
   }
@@ -85,48 +121,6 @@ class BarcodeDetectorPainter extends CustomPainter {
   @override
   bool shouldRepaint(BarcodeDetectorPainter oldDelegate) {
     return oldDelegate.imageSize != imageSize ||
-        oldDelegate.barcodes != barcodes ||
-        oldDelegate.selectedBarcodeIndex != selectedBarcodeIndex;
-  }
-
-  // Method to detect taps and return the barcode index
-  void checkTap(Offset tapPosition) {
-    for (int i = 0; i < barcodes.length; i++) {
-      Barcode barcode = barcodes[i];
-      final left = translateX(
-        barcode.boundingBox.left,
-        imageSize,
-        imageSize,
-        rotation,
-        cameraLensDirection,
-      );
-      final top = translateY(
-        barcode.boundingBox.top,
-        imageSize,
-        imageSize,
-        rotation,
-        cameraLensDirection,
-      );
-      final right = translateX(
-        barcode.boundingBox.right,
-        imageSize,
-        imageSize,
-        rotation,
-        cameraLensDirection,
-      );
-      final bottom = translateY(
-        barcode.boundingBox.bottom,
-        imageSize,
-        imageSize,
-        rotation,
-        cameraLensDirection,
-      );
-
-      // Check if the tap position is inside the bounding box
-      if (Rect.fromLTRB(left, top, right, bottom).contains(tapPosition)) {
-        onTap(i); // Notify parent about the selected barcode index
-        break;
-      }
-    }
+        oldDelegate.barcodes != barcodes;
   }
 }
