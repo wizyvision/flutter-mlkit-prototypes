@@ -25,7 +25,6 @@ class _BarcodeScannerViewState extends State<BarcodeScannerView> {
   bool _isPainted = false;
   bool _isPaused = false;
   late List<Barcode>? _barcodeList;
-  Map<String, bool> _confirmedBarcodeList = new Map<String, bool>();
 
   CustomPaint? _customPaint;
   var _cameraLensDirection = CameraLensDirection.back;
