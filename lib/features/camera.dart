@@ -142,6 +142,8 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
           Positioned(
             left: 0.0,
             bottom: 0.0,
+            height: _isPaused ? (screenHeight * 0.40) : (screenHeight * 0.30),
+            //duration: const Duration(milliseconds: 500),
             child: Container(
               color: Colors.black,
               padding: const EdgeInsets.all(16.0),

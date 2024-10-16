@@ -2,8 +2,10 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:ml_kit_implementation/cards/barcode_scanner.dart';
 import 'package:ml_kit_implementation/cards/document_scanner.dart';
+import 'package:ml_kit_implementation/features/barcode_provider.dart';
 import 'package:ml_kit_implementation/features/ml_kit_feature.dart';
 import 'package:ml_kit_implementation/widgets/feature_list_item.dart';
+import 'package:provider/provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -15,14 +17,19 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'ML Kit Feature Launcher',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => BarcodeProvider())
+      ],
+      child: MaterialApp(
+        title: 'ML Kit Feature Launcher',
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+          visualDensity: VisualDensity.adaptivePlatformDensity,
+        ),
+        home: const MyHomePage(),
+        debugShowCheckedModeBanner: false,
       ),
-      home: const MyHomePage(),
-      debugShowCheckedModeBanner: false,
     );
   }
 }
