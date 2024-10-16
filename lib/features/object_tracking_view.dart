@@ -1,236 +1,249 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:google_ml_kit/google_ml_kit.dart'; // Ensure ML Kit dependencies are included
+import 'package:flutter/services.dart';
+import 'package:permission_handler/permission_handler.dart';
+import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 
-class ObjectTrackingView extends StatefulWidget {
+class BarcodeScannerView extends StatefulWidget {
+  final List<CameraDescription> cameras;
+
+  BarcodeScannerView({Key? key, required this.cameras}) : super(key: key);
+
   @override
-  _ObjectTrackingViewState createState() => _ObjectTrackingViewState();
+  _BarcodeScannerViewState createState() => _BarcodeScannerViewState();
 }
 
-class _ObjectTrackingViewState extends State<ObjectTrackingView>
-    with SingleTickerProviderStateMixin {
-  late CameraController _cameraController;
-  late BarcodeScanner _barcodeScanner;
-  bool _isSensing = false;
-  bool _isCameraInitialized = false; // Track camera initialization
-  String _tooltipMessage = "Point your camera at a barcode";
-
-  // Animation controller for pulsing animation
-  AnimationController? _animationController;
+class _BarcodeScannerViewState extends State<BarcodeScannerView> {
+  CameraController? _cameraController;
+  Future<void>? _initializeControllerFuture;
+  BarcodeScanner _barcodeScanner = BarcodeScanner();
+  String _scannedBarcode = "";
+  bool _isScanning = false;
+  Color _frameColor = Colors.white; // Default frame color
 
   @override
   void initState() {
     super.initState();
     _initializeCamera();
-    _barcodeScanner = GoogleMlKit.vision.barcodeScanner();
-    _animationController = AnimationController(
-      duration: const Duration(seconds: 1),
-      vsync: this,
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _cameraController.dispose();
-    _barcodeScanner.close();
-    _animationController?.dispose();
-    super.dispose();
   }
 
   Future<void> _initializeCamera() async {
-    final cameras = await availableCameras();
-    final camera = cameras.first;
-    _cameraController = CameraController(camera, ResolutionPreset.high);
-    await _cameraController.initialize();
+    var status = await Permission.camera.request();
+    if (status.isGranted) {
+      _cameraController = CameraController(
+        widget.cameras[0],
+        ResolutionPreset.high,
+      );
 
-    if (mounted) {
-      setState(() {
-        _isCameraInitialized =
-            true; // Set to true once the camera is initialized
+      _initializeControllerFuture = _cameraController?.initialize();
+
+      // Wait until the camera is initialized before starting the image stream
+      await _initializeControllerFuture;
+
+      setState(() {});
+
+      // Start image stream for barcode scanning
+      _cameraController?.startImageStream((CameraImage image) {
+        if (_isScanning) return; // Prevent multiple scans
+        _isScanning = true; // Set scanning to true
+        _scanBarcode(image); // Process the image for barcode
       });
+    } else {
+      _showPermissionDeniedDialog();
     }
-
-    _cameraController.startImageStream((CameraImage image) {
-      final inputImage = _inputImageFromCameraImage(image);
-      if (inputImage != null) {
-        _processImage(inputImage);
-      }
-    });
   }
 
-  Future<void> _processImage(InputImage inputImage) async {
-    final barcodes = await _barcodeScanner.processImage(inputImage);
+  Future<void> _scanBarcode(CameraImage cameraImage) async {
+    final inputImage = _inputImageFromCamera(cameraImage);
+
+    if (inputImage == null) {
+      setState(() {
+        _scannedBarcode = "Image processing failed"; // Update message
+        _frameColor = Colors.red; // Change frame color to red
+      });
+      return;
+    }
+
+    // Scan barcodes
+    final List<Barcode> barcodes =
+        await _barcodeScanner.processImage(inputImage);
+
     if (barcodes.isNotEmpty) {
-      _showBarcodeResults(barcodes.first.rawValue ?? '');
+      setState(() {
+        _scannedBarcode = barcodes.first.displayValue ?? "No barcode detected";
+        _frameColor = Colors.green; // Change frame color to green
+      });
     } else {
       setState(() {
-        _tooltipMessage = 'Move closer to the barcode';
-        _isSensing = false;
+        _scannedBarcode = "No barcode detected"; // Update message
+        _frameColor = Colors.red; // Change frame color to red
       });
     }
+    // Delay before next scan
+    await Future.delayed(Duration(seconds: 2));
+    _isScanning = false; // Reset scanning flag
   }
 
-  InputImage? _inputImageFromCameraImage(CameraImage image) {
-    final sensorOrientation = _cameraController.description.sensorOrientation;
-    InputImageRotation? rotation;
-
-    if (Platform.isIOS) {
-      rotation = InputImageRotationValue.fromRawValue(sensorOrientation);
-    } else if (Platform.isAndroid) {
-      var rotationCompensation =
-          _cameraController.value.deviceOrientation.index * 90;
-      if (_cameraController.description.lensDirection ==
-          CameraLensDirection.front) {
-        rotationCompensation = (sensorOrientation + rotationCompensation) % 360;
-      } else {
-        rotationCompensation =
-            (sensorOrientation - rotationCompensation + 360) % 360;
-      }
-      rotation = InputImageRotationValue.fromRawValue(rotationCompensation);
+  Uint8List _cameraImageToBytes(CameraImage image) {
+    final WriteBuffer allBytes = WriteBuffer();
+    for (Plane plane in image.planes) {
+      allBytes.putUint8List(plane.bytes);
     }
+    return allBytes.done().buffer.asUint8List();
+  }
 
-    if (rotation == null) return null;
+  InputImage? _inputImageFromCamera(CameraImage image) {
+    final bytes = _cameraImageToBytes(image);
 
-    final format = InputImageFormatValue.fromRawValue(image.format.raw);
-    if (format == null ||
-        (Platform.isAndroid && format != InputImageFormat.nv21) ||
-        (Platform.isIOS && format != InputImageFormat.bgra8888)) return null;
+    final imageRotation = InputImageRotationValue.fromRawValue(
+            widget.cameras[0].sensorOrientation) ??
+        InputImageRotation.rotation0deg;
 
-    if (image.planes.length != 1) return null;
-    final plane = image.planes.first;
+    final inputImageFormat =
+        InputImageFormatValue.fromRawValue(image.format.raw) ??
+            InputImageFormat.nv21;
 
     return InputImage.fromBytes(
-      bytes: plane.bytes,
+      bytes: bytes,
       metadata: InputImageMetadata(
         size: Size(image.width.toDouble(), image.height.toDouble()),
-        rotation: rotation,
-        format: format,
-        bytesPerRow: plane.bytesPerRow,
+        rotation: imageRotation,
+        format: inputImageFormat,
+        bytesPerRow:
+            image.planes[0].bytesPerRow, // Use the first plane's bytesPerRow
       ),
     );
   }
 
-  void _showBarcodeResults(String data) {
-    showModalBottomSheet(
+  void _showPermissionDeniedDialog() {
+    showDialog(
       context: context,
-      builder: (context) {
-        return Container(
-          height: 200,
-          child: Column(
-            children: [
-              Text('Barcode Data:'),
-              Text(data),
-              // You can add more fields to display barcode data here.
-            ],
-          ),
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Camera Permission Denied'),
+          content: Text('Please grant camera permission to use this feature.'),
+          actions: [
+            TextButton(
+              child: Text('OK'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
         );
       },
     );
   }
 
-  void _toggleFlash() {
-    if (_cameraController.value.flashMode == FlashMode.off) {
-      _cameraController.setFlashMode(FlashMode.torch);
-    } else {
-      _cameraController.setFlashMode(FlashMode.off);
-    }
-  }
-
-  void _openHelp() {
-    // Handle opening help section
+  @override
+  void dispose() {
+    _cameraController?.dispose();
+    _barcodeScanner.close();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text('Barcode Scanner'),
-        actions: [
-          IconButton(
-            icon: Icon(Icons.flash_on), // Flash toggle
-            onPressed: _toggleFlash,
-          ),
-          IconButton(
-            icon: Icon(Icons.help_outline), // Help
-            onPressed: _openHelp,
-          ),
-        ],
-        leading: IconButton(
-          icon: Icon(Icons.close), // Exit
-          onPressed: () => Navigator.pop(context),
+      body: SafeArea(
+        child: Stack(
+          children: [
+            CameraPreviewWidget(
+                cameraController: _cameraController,
+                initializeControllerFuture: _initializeControllerFuture),
+            BarcodeFrame(frameColor: _frameColor), // Pass the frame color
+            BottomTooltip(scannedBarcode: _scannedBarcode),
+          ],
         ),
       ),
-      body:
-          _isCameraInitialized // Ensure camera is initialized before rendering
-              ? Stack(
-                  children: [
-                    CameraPreview(_cameraController),
-                    // Central barcode scanning area
-                    Align(
-                      alignment: Alignment.center,
-                      child: Container(
-                        width: 250,
-                        height: 150,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.withOpacity(0.3),
-                          border: Border.all(color: Colors.white, width: 2.0),
-                        ),
-                        child: _isSensing
-                            ? PulsingAnimation(_animationController!)
-                            : Container(),
-                      ),
-                    ),
-                    // Top and Bottom opacity overlay
-                    Align(
-                      alignment: Alignment.topCenter,
-                      child: Container(
-                        height: 100, // Adjust the height for top opacity
-                        color: Colors.black.withOpacity(0.5),
-                      ),
-                    ),
-                    Align(
-                      alignment: Alignment.bottomCenter,
-                      child: Container(
-                        height: 100, // Adjust the height for bottom opacity
-                        color: Colors.black.withOpacity(0.5),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: Tooltip(
-                            message: _tooltipMessage,
-                            child: Text(
-                              _tooltipMessage,
-                              style: TextStyle(color: Colors.white),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              : Center(
-                  child:
-                      CircularProgressIndicator()), // Show loading until camera is initialized
     );
   }
 }
 
-class PulsingAnimation extends StatelessWidget {
-  final AnimationController controller;
+// Camera Preview Widget
+class CameraPreviewWidget extends StatelessWidget {
+  final CameraController? cameraController;
+  final Future<void>? initializeControllerFuture;
 
-  PulsingAnimation(this.controller);
+  const CameraPreviewWidget({
+    Key? key,
+    required this.cameraController,
+    required this.initializeControllerFuture,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return ScaleTransition(
-      scale: Tween(begin: 0.8, end: 1.2).animate(CurvedAnimation(
-        parent: controller,
-        curve: Curves.easeInOut,
-      )),
+    return FutureBuilder<void>(
+      future: initializeControllerFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.done) {
+          return ClipRect(
+            child: OverflowBox(
+              child: CameraPreview(cameraController!),
+            ),
+          );
+        } else {
+          return Center(child: CircularProgressIndicator());
+        }
+      },
+    );
+  }
+}
+
+// Barcode Frame Widget
+class BarcodeFrame extends StatelessWidget {
+  final Color frameColor;
+
+  const BarcodeFrame({Key? key, required this.frameColor}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final screenSize = MediaQuery.of(context).size;
+    final double frameWidth = screenSize.width * 0.75; // 75% of screen width
+    final double frameHeight =
+        frameWidth * 0.4; // Aspect ratio of 1.875:1 for barcode frame
+
+    return Center(
       child: Container(
+        width: frameWidth,
+        height: frameHeight,
         decoration: BoxDecoration(
-          border: Border.all(color: Colors.greenAccent, width: 2.0),
+          border: Border.all(
+              color: frameColor, width: 2), // Use dynamic frame color
+          borderRadius: BorderRadius.circular(12),
+        ),
+      ),
+    );
+  }
+}
+
+// Bottom Tooltip Widget
+class BottomTooltip extends StatelessWidget {
+  final String scannedBarcode;
+
+  const BottomTooltip({Key? key, required this.scannedBarcode})
+      : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned(
+      bottom: 50,
+      left: 16,
+      right: 16,
+      child: Center(
+        child: Container(
+          padding: EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+          decoration: BoxDecoration(
+            color: Colors.black.withOpacity(0.7),
+            borderRadius: BorderRadius.circular(8),
+          ),
+          child: Text(
+            scannedBarcode,
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 16,
+            ),
+          ),
         ),
       ),
     );

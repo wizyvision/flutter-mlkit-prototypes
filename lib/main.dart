@@ -4,6 +4,8 @@ import 'package:ml_kit_implementation/cards/barcode_scanner.dart';
 import 'package:ml_kit_implementation/cards/barcode_single.dart';
 import 'package:ml_kit_implementation/cards/document_scanner.dart';
 import 'package:ml_kit_implementation/cards/object_tracking.dart';
+import 'package:ml_kit_implementation/cards/single_obj_card.dart';
+import 'package:ml_kit_implementation/cards/stream_obj_card.dart';
 import 'package:ml_kit_implementation/features/camera_controller_notifier.dart';
 import 'package:ml_kit_implementation/features/cameranew.dart';
 import 'package:ml_kit_implementation/features/ml_kit_feature.dart';
@@ -67,6 +69,8 @@ class _MyHomePageState extends State<MyHomePage> {
     BarcodeScannerFeature(),
     BarcodeSingleFeature(),
     ObjectTrackingFeature(),
+    SingleObjFeature(),
+    StreamObjFeature(),
     // Add more features here...
   ];
 
@@ -201,6 +205,7 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
 
           // List of Features
+
           Expanded(
             child: Container(
               width: screenWidth * 0.9, // Adaptive width
