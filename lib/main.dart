@@ -2,7 +2,8 @@ import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:ml_kit_implementation/cards/barcode_scanner.dart';
 import 'package:ml_kit_implementation/cards/document_scanner.dart';
-import 'package:ml_kit_implementation/cards/object_detector.dart';
+import 'package:ml_kit_implementation/cards/object_detector_single_card.dart';
+import 'package:ml_kit_implementation/cards/object_detector_stream_card.dart';
 import 'package:ml_kit_implementation/features/barcode_provider.dart';
 import 'package:ml_kit_implementation/features/ml_kit_feature.dart';
 import 'package:ml_kit_implementation/widgets/feature_list_item.dart';
@@ -52,7 +53,8 @@ class _MyHomePageState extends State<MyHomePage> {
   final List<MLKitFeature> features = [
     DocumentScannerFeature(),
     BarcodeScannerFeature(),
-    ObjectDetector(),
+    ObjectDetectorStreamCard(),
+    ObjectDetectorSingleCard(),
     // Add more features here...
   ];
 

@@ -119,8 +119,8 @@ class _ObjectDetectorStreamState extends State<ObjectDetectorStream> {
     _objectDetector = null;
     print('Set detector in mode: $_mode');
 
+    // default model
     if (_option == 0) {
-      // use the default model
       print('use the default model');
       final options = ObjectDetectorOptions(
         mode: _mode,
@@ -128,9 +128,9 @@ class _ObjectDetectorStreamState extends State<ObjectDetectorStream> {
         multipleObjects: true,
       );
       _objectDetector = ObjectDetector(options: options);
-    } else if (_option > 0 && _option <= _options.length) {
-      // use a custom model
-      // make sure to add tflite model to assets/ml
+    }
+    // custom model from _options
+    else if (_option > 0 && _option <= _options.length) {
       final option = _options[_options.keys.toList()[_option]] ?? '';
       final modelPath = await getAssetPath('assets/ml/$option');
       print('use custom model path: $modelPath');
@@ -139,6 +139,7 @@ class _ObjectDetectorStreamState extends State<ObjectDetectorStream> {
         modelPath: modelPath,
         classifyObjects: true,
         multipleObjects: true,
+        confidenceThreshold: 0.1,
       );
       _objectDetector = ObjectDetector(options: options);
     }

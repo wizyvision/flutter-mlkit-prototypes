@@ -5,11 +5,11 @@ import 'package:ml_kit_implementation/features/camera.dart';
 import 'package:ml_kit_implementation/features/ml_kit_feature.dart';
 import 'package:ml_kit_implementation/features/object_detector_stream.dart';
 
-class ObjectDetector extends MLKitFeature {
-  ObjectDetector()
+class ObjectDetectorStreamCard extends MLKitFeature {
+  ObjectDetectorStreamCard()
       : super(
           name: "Object Detector",
-          description: "Detect objects",
+          description: "Detect objects via live stream",
           icon: Icons.qr_code_scanner_outlined,
           color: Colors.pink[100]!,
         );
