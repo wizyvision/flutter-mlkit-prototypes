@@ -6,7 +6,7 @@ import 'package:ml_kit_implementation/features/ml_kit_feature.dart';
 class BarcodeSingleFeature extends MLKitFeature {
   BarcodeSingleFeature()
       : super(
-          name: "Barcode Single",
+          name: "Barcode Single 1",
           description: "Scan single barcode",
           icon: Icons.qr_code_scanner_outlined,
           color: Colors.lightGreen[100]!,

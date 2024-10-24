@@ -1,13 +1,14 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import 'package:ml_kit_implementation/features/barcode_scanner_multiple.dart';
 import 'package:ml_kit_implementation/features/barcode_scanner_view.dart';
 import 'package:ml_kit_implementation/features/ml_kit_feature.dart';
 
 class BarcodeScannerFeature extends MLKitFeature {
   BarcodeScannerFeature()
       : super(
-          name: "Barcode Scanner",
-          description: "Scan barcodes and QR codes",
+          name: "Barcode Mutiple",
+          description: "Scan multiple barcodes",
           icon: Icons.qr_code_scanner_outlined,
           color: Colors.lightGreen[100]!,
         );
@@ -19,7 +20,7 @@ class BarcodeScannerFeature extends MLKitFeature {
       Navigator.push(
           context,
           MaterialPageRoute(
-              builder: (context) => BarcodeScannerView(cameras: value)));
+              builder: (context) => BarcodeMultipleView(cameras: value)));
     });
 
     // Navigator.push(

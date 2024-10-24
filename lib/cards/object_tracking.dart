@@ -6,8 +6,8 @@ import 'package:ml_kit_implementation/features/object_tracking_view.dart';
 class ObjectTrackingFeature extends MLKitFeature {
   ObjectTrackingFeature()
       : super(
-          name: "Object Tracker",
-          description: "Detects Objects",
+          name: "Barcode Single 2",
+          description: "Scan single barcode",
           icon: Icons.select_all_outlined,
           color: Colors.yellow[100]!,
         );

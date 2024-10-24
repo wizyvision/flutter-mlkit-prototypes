@@ -1,6 +1,6 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
-import 'package:ml_kit_implementation/cards/barcode_scanner.dart';
+import 'package:ml_kit_implementation/cards/barcode_multiple.dart';
 import 'package:ml_kit_implementation/cards/barcode_single.dart';
 import 'package:ml_kit_implementation/cards/document_scanner.dart';
 import 'package:ml_kit_implementation/cards/object_tracking.dart';
