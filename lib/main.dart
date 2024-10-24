@@ -6,6 +6,7 @@ import 'package:ml_kit_implementation/cards/document_scanner.dart';
 import 'package:ml_kit_implementation/cards/object_tracking.dart';
 import 'package:ml_kit_implementation/cards/single_obj_card.dart';
 import 'package:ml_kit_implementation/cards/stream_obj_card.dart';
+import 'package:ml_kit_implementation/features/barcode_provider.dart';
 import 'package:ml_kit_implementation/features/camera_controller_notifier.dart';
 import 'package:ml_kit_implementation/features/cameranew.dart';
 import 'package:ml_kit_implementation/features/ml_kit_feature.dart';
@@ -38,14 +39,19 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'ML Kit Feature Launcher',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (context) => BarcodeProvider())
+      ],
+      child: MaterialApp(
+        title: 'ML Kit Feature Launcher',
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+          visualDensity: VisualDensity.adaptivePlatformDensity,
+        ),
+        home: MyHomePage(cameras: cameras),
+        debugShowCheckedModeBanner: false,
       ),
-      home: MyHomePage(cameras: cameras),
-      debugShowCheckedModeBanner: false,
     );
   }
 }
