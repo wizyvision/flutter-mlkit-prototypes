@@ -137,7 +137,8 @@ class _MyHomePageState extends State<MyHomePage> {
                           onImage: (inputImage, controller) {
                             // Handle what happens with the image here
                           },
-                          isPaused: false, // Adjust as needed
+                          isPaused: false,
+                          onCapturePressed: () async {}, // Adjust as needed
                         ),
                       ),
                     );

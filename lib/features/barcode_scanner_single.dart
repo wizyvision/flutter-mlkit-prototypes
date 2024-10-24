@@ -36,6 +36,7 @@ class _BarcodeSingleViewState extends State<BarcodeSingleView> {
                 _cameraPreviewSize = size; // Update the preview size
               });
             },
+            onCapturePressed: () async {},
           ),
           if (_barcodes.isNotEmpty && _cameraPreviewSize != Size.zero)
             GestureDetector(

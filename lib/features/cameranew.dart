@@ -12,6 +12,7 @@ class CameraNewView extends StatefulWidget {
   final Function(InputImage inputImage, CameraController controller) onImage;
   final bool isPaused;
   final Function(Size size)? onSizeChanged;
+  final Future<void> Function() onCapturePressed;
 
   const CameraNewView({
     super.key,
@@ -19,6 +20,7 @@ class CameraNewView extends StatefulWidget {
     required this.onImage,
     required this.isPaused,
     this.onSizeChanged,
+    required this.onCapturePressed,
   });
 
   @override
@@ -343,7 +345,7 @@ class _CameraNewViewState extends State<CameraNewView> {
             ),
             IconButton(
               onPressed: () {
-                // Capture Image
+                widget.onCapturePressed();
               },
               icon: Icon(
                 CupertinoIcons.circle_filled,

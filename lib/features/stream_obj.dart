@@ -1,11 +1,10 @@
 import 'dart:io';
-import 'dart:ui' as ui;
 import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 import 'package:flutter/services.dart';
 import 'package:google_mlkit_object_detection/google_mlkit_object_detection.dart';
+import 'dart:ui' as ui;
 
 import 'painters/coordinates_translator.dart';
 
@@ -19,6 +18,8 @@ class _StreamObjScreenState extends State<StreamObjScreen> {
   bool _isDetecting = false;
   List<DetectedObject>? _detectedObjects;
   Size? _imageSize;
+
+  String guidanceText = "Position object inside the frame";
 
   final ObjectDetector objectDetector = ObjectDetector(
     options: ObjectDetectorOptions(
@@ -112,12 +113,16 @@ class _StreamObjScreenState extends State<StreamObjScreen> {
 
       if (objects.isEmpty) {
         print("No objects detected");
-      }
-
-      if (mounted) {
+        setState(() {
+          _detectedObjects = null; // Clear detected objects
+          _imageSize = null; // Clear image size
+          guidanceText = "Move closer to the object";
+        });
+      } else {
         setState(() {
           _detectedObjects = objects;
           _imageSize = inputImage.metadata?.size;
+          guidanceText = "Object detected. Hold steady.";
         });
       }
     } catch (e) {
@@ -136,6 +141,8 @@ class _StreamObjScreenState extends State<StreamObjScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final double frameWidth = 300;
+    final double frameHeight = 200;
     return Scaffold(
       appBar: AppBar(title: Text('Object Detection (Stream)')),
       body: _cameraController == null
@@ -143,21 +150,51 @@ class _StreamObjScreenState extends State<StreamObjScreen> {
           : Stack(
               children: [
                 CameraPreview(_cameraController!),
-                if (_detectedObjects != null && _imageSize != null)
-                  CustomPaint(
-                    size: Size(
-                      _cameraController!.value.previewSize!.width,
-                      _cameraController!.value.previewSize!.height,
-                    ),
-                    painter: ObjectDetectorPainter(
-                      _detectedObjects!,
-                      _imageSize!,
-                      InputImageRotationValue.fromRawValue(
-                              _cameras[_cameraIndex].sensorOrientation) ??
-                          InputImageRotation.rotation0deg,
-                      _cameras[_cameraIndex].lensDirection,
+                Center(
+                  child: Container(
+                    width: frameWidth,
+                    height: frameHeight,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(5),
+                      border: Border.all(
+                        color: Colors.white,
+                        width: 3,
+                      ),
                     ),
                   ),
+                ),
+                if (_detectedObjects != null && _imageSize != null)
+                  Center(
+                    // Clip the CustomPaint to only paint within the middle frame
+                    child: ClipRect(
+                      child: CustomPaint(
+                        size: Size(
+                            frameWidth, frameHeight), // Adjust to frame size
+                        painter: ObjectDetectorPainter(
+                          _detectedObjects!,
+                          _imageSize!,
+                          InputImageRotationValue.fromRawValue(
+                                  _cameras[_cameraIndex].sensorOrientation) ??
+                              InputImageRotation.rotation0deg,
+                          _cameras[_cameraIndex].lensDirection,
+                        ),
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  bottom: 50,
+                  left: 0,
+                  right: 0,
+                  child: Text(
+                    guidanceText,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.white,
+                      backgroundColor: Colors.black.withOpacity(0.6),
+                    ),
+                  ),
+                ),
               ],
             ),
     );
@@ -187,6 +224,8 @@ class ObjectDetectorPainter extends CustomPainter {
     final Paint background = Paint()..color = Color(0x99000000);
 
     for (final DetectedObject detectedObject in _objects) {
+      // if (detectedObject.labels.isNotEmpty) {
+      // Only show if there are labels
       final ParagraphBuilder builder = ParagraphBuilder(
         ParagraphStyle(
             textAlign: TextAlign.left,
@@ -254,6 +293,7 @@ class ObjectDetectorPainter extends CustomPainter {
                 : left,
             top),
       );
+      // }
     }
   }
 
