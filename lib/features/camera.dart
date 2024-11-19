@@ -1,48 +1,67 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter/services.dart';
 import 'package:gal/gal.dart';
-import 'dart:async';
+import 'package:google_mlkit_barcode_scanning/google_mlkit_barcode_scanning.dart';
 
 class CameraView extends StatefulWidget {
-  const CameraView({super.key});
+  final List<CameraDescription> cameras;
+  final Function(InputImage inputImage) onImage;
+  final CustomPaint? customPaint;
+  final CameraLensDirection? initialCameraLensDirection;
+  final bool isPaused;
+
+  const CameraView({
+    super.key,
+    required this.onImage,
+    this.customPaint,
+    required this.cameras,
+    this.initialCameraLensDirection = CameraLensDirection.back,
+    required this.isPaused,
+  });
 
   @override
   State<CameraView> createState() => _CameraViewState();
 }
 
 class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
-  List<CameraDescription> cameras = [];
-  CameraController? cameraController;
-  final CameraState cameraState = CameraState();
-  double _baseZoom = 1.0;
-  Timer? _zoomTimer;
+  // List<CameraDescription> cameras = [];
+  late CameraController _cameraController;
+  bool _isPaused = false;
+
+  //_CameraViewState();
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    if (cameraController == null || !cameraController!.value.isInitialized) {
+    if (_cameraController.value.isInitialized == false) {
       return;
     }
     if (state == AppLifecycleState.inactive) {
-      cameraController?.dispose();
+      _cameraController.dispose();
     } else if (state == AppLifecycleState.resumed) {
-      _setupCameraController();
+      _setupCameraController(widget.cameras[0]);
     }
   }
 
   @override
   void initState() {
     super.initState();
-    _setupCameraController();
+    _setupCameraController(widget.cameras[0]);
   }
 
   @override
-  void dispose() {
-    cameraController?.dispose();
-    _zoomTimer?.cancel();
-    super.dispose();
+  void didUpdateWidget(covariant CameraView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (!oldWidget.isPaused && widget.isPaused) {
+      _cameraController.pausePreview();
+      _isPaused = true;
+    } else if (oldWidget.isPaused && !widget.isPaused) {
+      _isPaused = false;
+      _cameraController.resumePreview();
+    }
   }
 
   @override
@@ -50,174 +69,124 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
     final double screenHeight = MediaQuery.of(context).size.height;
     final double screenWidth = MediaQuery.of(context).size.width;
     return Scaffold(
-      body: ChangeNotifierProvider(
-        create: (_) => cameraState,
-        child: Consumer<CameraState>(
-          builder: (context, state, _) {
-            return Stack(
-              children: [
-                _buildUI(screenHeight, screenWidth, state),
-                _buildFocusSquare(),
-                _buildZoomIndicator(screenHeight),
-              ],
-            );
-          },
-        ),
-      ),
+      body: _buildUI(screenHeight, screenWidth),
     );
   }
 
-  Widget _buildUI(double screenHeight, double screenWidth, CameraState state) {
-    if (cameraController == null || !cameraController!.value.isInitialized) {
+  Widget _buildUI(double screenHeight, double screenWidth) {
+    if (_cameraController.value.isInitialized == false) {
       return const Center(
         child: CircularProgressIndicator(),
       );
     }
-
     return SafeArea(
-      child: GestureDetector(
-        onScaleStart: (details) {
-          _baseZoom = cameraState.zoomLevel;
-        },
-        onScaleUpdate: (details) {
-          double zoomFactor = (_baseZoom * details.scale).clamp(
-            cameraState.minZoomLevel,
-            cameraState.maxZoomLevel,
-          );
-          cameraState.updateZoom(zoomFactor);
-
-          if (_zoomTimer == null || !_zoomTimer!.isActive) {
-            _zoomTimer = Timer(const Duration(milliseconds: 50), () async {
-              await cameraController?.setZoomLevel(zoomFactor);
-            });
-          }
-        },
-        onTapDown: (TapDownDetails details) {
-          // Convert local position to normalized focus point
-          final RenderBox renderBox = context.findRenderObject() as RenderBox;
-          Offset localPosition =
-              renderBox.globalToLocal(details.globalPosition);
-          double normalizedX = localPosition.dx / renderBox.size.width;
-          double normalizedY = localPosition.dy / renderBox.size.height;
-
-          // Set the focus at the tapped position
-          state.setFocus(Offset(normalizedX, normalizedY));
-          _setCameraFocus(normalizedX, normalizedY);
-
-          // If focus is locked, unlock it
-          if (state.isFocusLocked) {
-            state.unlockFocus();
-          }
-        },
-        onLongPressStart: (details) {
-          // Convert local position to normalized focus point
-          final RenderBox renderBox = context.findRenderObject() as RenderBox;
-          Offset localPosition =
-              renderBox.globalToLocal(details.globalPosition);
-          double normalizedX = localPosition.dx / renderBox.size.width;
-          double normalizedY = localPosition.dy / renderBox.size.height;
-
-          // Lock focus and set the focus point
-          state.lockFocus(Offset(normalizedX, normalizedY));
-          _setCameraFocus(normalizedX, normalizedY); // Set focus
-        },
-        onTap: () {
-          // Hide the focus square and unlock the focus when tapping outside
-          if (cameraState.isFocusLocked) {
-            state.unlockFocus(); // Unlock focus
-          }
-        },
-        child: Column(
-          children: [
-            _buildTopControls(screenWidth),
-            Expanded(
-              child: AspectRatio(
-                aspectRatio: screenWidth / (screenHeight * 0.6),
-                child: CameraPreview(cameraController!),
+      child: Stack(
+        children: [
+          // Top section with black background and top icons
+          Positioned(
+            top: 0.0,
+            left: 0.0,
+            child: Container(
+              color: Colors.black,
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              height: screenHeight * 0.1,
+              width: screenWidth,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: Icon(
+                      Icons.arrow_back,
+                      color: Colors.white,
+                      size: screenWidth * 0.08,
+                    ),
+                    onPressed: () {
+                      Navigator.of(context).pop(); // Go back to previous screen
+                    },
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      // _isFlashOn ? Icons.flash_on : Icons.flash_off,
+                      Icons.flash_on,
+                      color: Colors.white,
+                      size: screenWidth * 0.08,
+                    ),
+                    onPressed: () async {
+                      // setState(() {
+                      //   _isFlashOn = !_isFlashOn;
+                      // });
+                      // await cameraController?.setFlashMode(
+                      //   _isFlashOn ? FlashMode.torch : FlashMode.off,
+                      // );
+                    },
+                  ),
+                ],
               ),
             ),
-            _buildBottomControls(screenHeight, screenWidth),
-          ],
-        ),
-      ),
-    );
-  }
+          ),
 
-  void _setCameraFocus(double normalizedX, double normalizedY) {
-    cameraController?.setFocusMode(FocusMode.auto);
-    cameraController?.setFocusPoint(Offset(normalizedX, normalizedY));
-  }
+          // Middle section for Camera Preview
+          AnimatedPositioned(
+            top: _isPaused ? 0.0 : (screenHeight * 0.1),
+            left: 0.0,
+            width: screenWidth,
+            height: screenHeight * 0.6,
+            duration: const Duration(milliseconds: 500),
+            child: CameraPreview(
+              _cameraController,
+              child: widget.customPaint,
+            ),
+          ),
 
-  Widget _buildTopControls(double screenWidth) {
-    return Container(
-      color: Colors.black,
-      padding: const EdgeInsets.symmetric(horizontal: 16.0),
-      height: 80,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          IconButton(
-            icon: Icon(
-              Icons.arrow_back,
-              color: Colors.white,
-              size: screenWidth * 0.08,
-            ),
-            onPressed: () {
-              Navigator.of(context).pop(); // Go back to previous screen
-            },
-          ),
-          IconButton(
-            icon: Icon(
-              Icons.flash_on,
-              color: Colors.white,
-              size: screenWidth * 0.08,
-            ),
-            onPressed: () {
-              // Toggle flash functionality here
-            },
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildBottomControls(double screenHeight, double screenWidth) {
-    return Container(
-      color: Colors.black,
-      padding: const EdgeInsets.all(16.0),
-      height: screenHeight * 0.25,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          IconButton(
-            onPressed: () {
-              // Open gallery or perform another action
-            },
-            iconSize: screenWidth * 0.10,
-            icon: const Icon(
-              Icons.photo_library,
-              color: Colors.white,
-            ),
-          ),
-          IconButton(
-            onPressed: () async {
-              XFile picture = await cameraController!.takePicture();
-              Gal.putImage(picture.path); // Save the image to gallery
-            },
-            iconSize: screenWidth * 0.22,
-            icon: const Icon(
-              CupertinoIcons.circle_filled,
-              color: Colors.white,
-            ),
-          ),
-          IconButton(
-            onPressed: () {
-              // Handle switching cameras
-            },
-            iconSize: screenWidth * 0.10,
-            icon: const Icon(
-              CupertinoIcons.arrow_2_circlepath_circle_fill,
-              color: Colors.white,
+          // Bottom section with black background and bottom icons
+          Positioned(
+            left: 0.0,
+            bottom: 0.0,
+            height: _isPaused ? (screenHeight * 0.40) : (screenHeight * 0.30),
+            //duration: const Duration(milliseconds: 500),
+            child: Container(
+              color: Colors.black,
+              padding: const EdgeInsets.all(16.0),
+              height: screenHeight * 0.25,
+              width: screenWidth,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    onPressed: () async {
+                      // Open gallery or perform another action
+                    },
+                    iconSize: screenWidth * 0.10,
+                    icon: const Icon(
+                      Icons.photo_library,
+                      color: Colors.white,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () async {
+                      XFile picture = await _cameraController!.takePicture();
+                      Gal.putImage(
+                        picture.path,
+                      );
+                    },
+                    iconSize: screenWidth * 0.22,
+                    icon: const Icon(
+                      CupertinoIcons.circle_filled,
+                      color: Colors.white,
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () async {
+                      // Handle switching cameras
+                    },
+                    iconSize: screenWidth * 0.10,
+                    icon: const Icon(
+                      CupertinoIcons.arrow_2_circlepath_circle_fill,
+                      color: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -225,109 +194,100 @@ class _CameraViewState extends State<CameraView> with WidgetsBindingObserver {
     );
   }
 
-  Widget _buildZoomIndicator(double screenHeight) {
-    return Positioned(
-      bottom: screenHeight * 0.30, // Above camera controls
-      right: 10,
-      child: Column(
-        children: [
-          Text(
-            '${cameraState.zoomLevel.toStringAsFixed(1)}x',
-            style: const TextStyle(color: Colors.white, fontSize: 18),
-          ),
-          Slider(
-            value: cameraState.zoomLevel,
-            min: cameraState.minZoomLevel,
-            max: cameraState.maxZoomLevel,
-            activeColor: Colors.white,
-            inactiveColor: Colors.grey,
-            onChanged: (value) async {
-              cameraState.updateZoom(value);
-              await cameraController?.setZoomLevel(value);
-            },
-          ),
-        ],
-      ),
+  Future<void> _setupCameraController(
+      CameraDescription cameraDescription) async {
+    // with if statement, widget camera is only initiatlized once and imageStream / inputimagefromcamera only happens once
+
+    // List<CameraDescription> _cameras = await availableCameras();
+    // if (widget.cameras.isNotEmpty) {
+    //   setState(() {
+    //     final _cameras = widget.cameras;
+    //     _cameraController = CameraController(
+    //       _cameras.first,
+    //       ResolutionPreset.max,
+    //     );
+    //   });
+    //   _cameraController?.initialize().then((_) {
+    //     if (!mounted) {
+    //       return;
+    //     }
+    //     _cameraController!.startImageStream(_inputImageFromCamera);
+    //     setState(() {});
+    //   }).catchError(
+    //     (Object e) {
+    //       print(e);
+    //     },
+    //   );
+    // }
+
+    _cameraController = CameraController(
+      cameraDescription,
+      ResolutionPreset.high,
     );
-  }
 
-  Widget _buildFocusSquare() {
-    if (!cameraState.showFocusSquare || cameraState.focusPoint == null)
-      return Container();
+    try {
+      await _cameraController.initialize().then((_) {
+        if (!mounted) return;
 
-    return Positioned(
-      left: cameraState.focusPoint!.dx * MediaQuery.of(context).size.width - 40,
-      top: cameraState.focusPoint!.dy * MediaQuery.of(context).size.height - 40,
-      child: Container(
-        width: 80,
-        height: 80,
-        decoration: BoxDecoration(
-          shape: BoxShape.rectangle,
-          border: Border.all(color: Colors.yellow, width: 2),
-        ),
-      ),
-    );
-  }
-
-  Future<void> _setupCameraController() async {
-    List<CameraDescription> _cameras = await availableCameras();
-    if (_cameras.isNotEmpty) {
-      cameraController = CameraController(
-        _cameras.first,
-        ResolutionPreset.max,
-      );
-      await cameraController?.initialize();
-      cameraState.setZoomLevels(
-        await cameraController!.getMinZoomLevel(),
-        await cameraController!.getMaxZoomLevel(),
-      );
-      setState(() {});
+        _cameraController.startImageStream(_processCameraImage);
+        setState(() {});
+      });
+    } on CameraException catch (e) {
+      debugPrint("Camera error $e");
     }
   }
-}
 
-class CameraState extends ChangeNotifier {
-  double zoomLevel = 1.0;
-  double minZoomLevel = 1.0;
-  double maxZoomLevel = 10.0;
-  Offset? focusPoint;
-  bool showFocusSquare = false;
-  bool isFocusLocked = false;
+  _processCameraImage(CameraImage image) {
+    if (_isPaused) return;
 
-  void setZoomLevels(double minZoom, double maxZoom) {
-    minZoomLevel = minZoom;
-    maxZoomLevel = maxZoom;
-    notifyListeners();
+    final inputImage = _inputImageFromCamera(image);
+    if (inputImage == null) return;
+    widget.onImage(inputImage);
   }
 
-  void updateZoom(double newZoom) {
-    zoomLevel = newZoom.clamp(minZoomLevel, maxZoomLevel);
-    notifyListeners();
+  Uint8List _cameraImageToBytes(CameraImage image) {
+    final WriteBuffer allBytes = WriteBuffer();
+    for (Plane plane in image.planes) {
+      allBytes.putUint8List(plane.bytes);
+    }
+    final bytes = allBytes.done().buffer.asUint8List();
+    return bytes;
   }
 
-  void setFocus(Offset position) {
-    if (isFocusLocked) return;
+  InputImage? _inputImageFromCamera(CameraImage image) {
+    final bytes = _cameraImageToBytes(image);
 
-    focusPoint = position;
-    showFocusSquare = true;
-    notifyListeners();
+    final imageRotation = InputImageRotationValue.fromRawValue(
+            widget.cameras[0].sensorOrientation) ??
+        InputImageRotation.rotation0deg;
 
-    Future.delayed(const Duration(milliseconds: 800), () {
-      showFocusSquare = false;
-      notifyListeners();
-    });
+    final inputImageFormat =
+        InputImageFormatValue.fromRawValue(image.format.raw) ??
+            InputImageFormat.nv21;
+
+    int newWidth = image.planes[0].bytesPerRow;
+
+    //if (_cameraController == null) return null;
+
+    return InputImage.fromBytes(
+      bytes: bytes,
+      metadata: InputImageMetadata(
+        size: Size(newWidth.toDouble(), image.height.toDouble()),
+        rotation: imageRotation,
+        format: inputImageFormat,
+        bytesPerRow: image.planes.length,
+      ),
+    );
   }
 
-  void lockFocus(Offset position) {
-    isFocusLocked = true;
-    focusPoint = position;
-    showFocusSquare = true; // Keep the indicator visible while locked
-    notifyListeners();
+  @override
+  void dispose() {
+    _stopLiveFeed();
+    super.dispose();
   }
 
-  void unlockFocus() {
-    isFocusLocked = false;
-    showFocusSquare = false; // Hide the indicator when unlocking
-    notifyListeners();
+  Future<void> _stopLiveFeed() async {
+    await _cameraController.stopImageStream();
+    await _cameraController.dispose();
   }
 }
