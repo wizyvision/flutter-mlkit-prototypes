@@ -67,15 +67,6 @@ class _ScannerScreenState extends State<ScannerScreen> {
       print('Starting document scan...');
       final result = await _documentScanner.scanDocument();
 
-      // Handle if user cancels or no result is provided
-      if (result == null) {
-        print('Scan was canceled or failed.');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Scan canceled or no result')),
-        );
-        return; // Exit the function gracefully
-      }
-
       // Save JPEG images
       if (result.images.isNotEmpty) {
         for (String imagePath in result.images) {

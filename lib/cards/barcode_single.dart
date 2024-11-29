@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:camera/camera.dart'; // Import the camera package
 import 'package:ml_kit_implementation/features/barcode_scanner_single.dart';
 import 'package:ml_kit_implementation/features/ml_kit_feature.dart';
+import 'package:ml_kit_implementation/features/single_barcode_provider.dart';
+import 'package:provider/provider.dart';
 
 class BarcodeSingleFeature extends MLKitFeature {
   BarcodeSingleFeature()
@@ -21,7 +23,11 @@ class BarcodeSingleFeature extends MLKitFeature {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => BarcodeSingleView(cameras: cameras),
+        builder: (context) => ChangeNotifierProvider(
+          create: (context) =>
+              SingleBarcodeProvider(), // Provide the SingleBarcodeProvider
+          child: BarcodeSingleView(cameras: cameras),
+        ),
       ),
     );
   }
