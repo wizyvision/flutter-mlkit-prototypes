@@ -9,7 +9,7 @@ class ObjectTrackingFeature extends MLKitFeature {
           name: "Barcode Single 2",
           description: "Scan single barcode",
           icon: Icons.select_all_outlined,
-          color: Colors.yellow[100]!,
+          color: Colors.lightGreen[100]!,
         );
 
   @override

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:camera/camera.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -51,44 +53,36 @@ class _CameraNewViewState extends State<CameraNewView> {
 
   Future<void> _setupCameraController(
       CameraDescription cameraDescription) async {
-    // Request camera permissions
-    var status = await Permission.camera.request();
-    if (status.isGranted) {
-      try {
-        await _cameraNotifier.initialize(cameraDescription);
-        // Ensure the controller is initialized before starting the image stream
-        if (_cameraNotifier.controller != null) {
-          // Stop the stream if it's already active
-          if (_cameraNotifier.controller!.value.isStreamingImages) {
-            await _cameraNotifier.controller!.stopImageStream();
-          }
-          await _cameraNotifier.controller!
-              .startImageStream(_processCameraImage);
-        }
-      } catch (e) {
-        debugPrint('Camera initialization failed: $e');
+    try {
+      var status = await Permission.camera.request();
+      if (!status.isGranted) {
+        debugPrint("Camera permission denied");
+        return;
       }
-    } else {
-      debugPrint("Camera permission denied");
+      await _cameraNotifier.initialize(cameraDescription);
+      if (_cameraNotifier.controller?.value.isStreamingImages == true) {
+        await _cameraNotifier.controller?.stopImageStream();
+      }
+      await _cameraNotifier.controller?.startImageStream(_processCameraImage);
+    } catch (e) {
+      debugPrint('Camera initialization failed: $e');
     }
   }
 
+  Timer? _debounceTimer;
+
   void _processCameraImage(CameraImage image) {
-    final currentTime = DateTime.now().millisecondsSinceEpoch;
-    // Debounce and check if the camera is paused
-    if (currentTime - _lastProcessedTime < debounceDurationMs ||
-        widget.isPaused ||
-        _cameraNotifier.controller == null ||
-        !_cameraNotifier.controller!.value.isInitialized) {
-      return;
-    }
+    if (_debounceTimer?.isActive ?? false || widget.isPaused) return;
 
-    _lastProcessedTime = currentTime; // Update last processed time
+    _debounceTimer = Timer(Duration(milliseconds: debounceDurationMs), () {
+      if (_cameraNotifier.controller == null ||
+          !_cameraNotifier.controller!.value.isInitialized) return;
 
-    final inputImage = _inputImageFromCamera(image);
-    if (inputImage != null) {
-      widget.onImage(inputImage, _cameraNotifier.controller!);
-    }
+      final inputImage = _inputImageFromCamera(image);
+      if (inputImage != null) {
+        widget.onImage(inputImage, _cameraNotifier.controller!);
+      }
+    });
   }
 
   Uint8List _cameraImageToBytes(CameraImage image) {
@@ -102,17 +96,19 @@ class _CameraNewViewState extends State<CameraNewView> {
   InputImageMetadata? _cachedMetadata;
 
   InputImageMetadata _createImageMetadata(CameraImage image) {
-    if (_cachedMetadata == null || image.width != _cachedMetadata!.size.width) {
-      final imageRotation = InputImageRotationValue.fromRawValue(
-              widget.cameras[0].sensorOrientation) ??
-          InputImageRotation.rotation0deg;
-      final inputImageFormat =
-          InputImageFormatValue.fromRawValue(image.format.raw) ??
-              InputImageFormat.nv21;
+    final rotation = InputImageRotationValue.fromRawValue(
+            widget.cameras[0].sensorOrientation) ??
+        InputImageRotation.rotation0deg;
+    final format = InputImageFormatValue.fromRawValue(image.format.raw) ??
+        InputImageFormat.nv21;
+
+    if (_cachedMetadata == null ||
+        _cachedMetadata!.size !=
+            Size(image.width.toDouble(), image.height.toDouble())) {
       _cachedMetadata = InputImageMetadata(
         size: Size(image.width.toDouble(), image.height.toDouble()),
-        rotation: imageRotation,
-        format: inputImageFormat,
+        rotation: rotation,
+        format: format,
         bytesPerRow: image.planes[0].bytesPerRow,
       );
     }
@@ -130,7 +126,6 @@ class _CameraNewViewState extends State<CameraNewView> {
   @override
   void didUpdateWidget(covariant CameraNewView oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // Pause or resume camera stream based on isPaused flag
     if (widget.isPaused && !oldWidget.isPaused) {
       _pauseCameraStream();
     } else if (!widget.isPaused && oldWidget.isPaused) {
@@ -138,20 +133,19 @@ class _CameraNewViewState extends State<CameraNewView> {
     }
   }
 
-  void _pauseCameraStream() {
-    _cameraNotifier.controller?.stopImageStream();
+  void _pauseCameraStream() async {
+    await _cameraNotifier.controller?.stopImageStream();
   }
 
-  void _resumeCameraStream() {
-    _cameraNotifier.controller?.startImageStream(_processCameraImage);
+  void _resumeCameraStream() async {
+    await _cameraNotifier.controller?.startImageStream(_processCameraImage);
   }
 
   @override
   void dispose() {
-    // Stop the image stream if it's running
-    if (_cameraNotifier.controller != null &&
-        _cameraNotifier.controller!.value.isStreamingImages) {
-      _cameraNotifier.controller!.stopImageStream();
+    _debounceTimer?.cancel();
+    if (_cameraNotifier.controller?.value.isStreamingImages ?? false) {
+      _cameraNotifier.controller?.stopImageStream();
     }
     _cameraNotifier.disposeController();
     super.dispose();

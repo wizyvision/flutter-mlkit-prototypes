@@ -1,7 +1,6 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 import 'package:ml_kit_implementation/features/barcode_scanner_multiple.dart';
-import 'package:ml_kit_implementation/features/barcode_scanner_view.dart';
 import 'package:ml_kit_implementation/features/ml_kit_feature.dart';
 
 class BarcodeScannerFeature extends MLKitFeature {

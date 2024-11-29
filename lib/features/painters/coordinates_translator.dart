@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:ui';
-
 import 'package:camera/camera.dart';
 import 'package:google_mlkit_commons/google_mlkit_commons.dart';
 
@@ -10,13 +9,11 @@ double translateCoordinate(
   Size imageSize,
   InputImageRotation rotation,
   CameraLensDirection cameraLensDirection,
-  bool isXAxis, // true if translating x, false for y
+  bool isXAxis,
 ) {
-  // Check for zero dimensions to prevent division by zero
   if (imageSize.width == 0 || imageSize.height == 0) {
     throw ArgumentError('Image size must not be zero.');
   }
-  // Translation logic based on rotation and camera lens direction
   switch (rotation) {
     case InputImageRotation.rotation90deg:
       return isXAxis
@@ -46,7 +43,6 @@ double translateCoordinate(
   }
 }
 
-// Now you can use the helper function like this:
 double translateX(double x, Size canvasSize, Size imageSize,
     InputImageRotation rotation, CameraLensDirection cameraLensDirection) {
   return translateCoordinate(
